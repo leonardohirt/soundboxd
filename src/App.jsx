@@ -138,10 +138,20 @@ export default function App() {
 
   // Review Handlers
   const handleSaveReview = async (reviewData) => {
-    await createOrUpdateReview(reviewData);
+    const saved = await createOrUpdateReview(reviewData);
     setReviewAlbum(null);
     setEditingReview(null);
-    loadData(); // reload reviews
+    
+    // Update reviews state in React instantly!
+    setReviews(prev => {
+      const idx = prev.findIndex(r => r.id === saved.id || String(r.album_id) === String(saved.album_id));
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = saved;
+        return copy;
+      }
+      return [saved, ...prev];
+    });
   };
 
   const handleDeleteReview = async (id) => {
@@ -150,7 +160,7 @@ export default function App() {
       setSelectedAlbum(null);
       setReviewAlbum(null);
       setEditingReview(null);
-      loadData();
+      setReviews(prev => prev.filter(r => r.id !== id));
     }
   };
 
@@ -182,6 +192,7 @@ export default function App() {
 
   // Quick helper to check if an album has been reviewed
   const getReviewForAlbum = (albumId) => {
+    if (!albumId) return null;
     return reviews.find(r => String(r.album_id) === String(albumId));
   };
 
@@ -875,7 +886,7 @@ export default function App() {
       {reviewAlbum && (
         <ReviewModal
           album={reviewAlbum}
-          existingReview={editingReview}
+          existingReview={editingReview || getReviewForAlbum(reviewAlbum.album_id)}
           onClose={() => { setReviewAlbum(null); setEditingReview(null); }}
           onSaveReview={handleSaveReview}
           onDeleteReview={handleDeleteReview}

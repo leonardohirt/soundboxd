@@ -192,7 +192,7 @@ export const getLocalReviews = () => {
 
 export const saveLocalReview = (newReview) => {
   const reviews = getLocalReviews();
-  const index = reviews.findIndex(r => r.id === newReview.id || r.album_id === newReview.album_id);
+  const index = reviews.findIndex(r => r.id === newReview.id || String(r.album_id) === String(newReview.album_id));
   let updated;
   if (index >= 0) {
     updated = [...reviews];
@@ -318,8 +318,9 @@ export const deleteList = async (listId) => {
   return updated;
 };
 
-// Supabase Async Handlers
+// Supabase Async Handlers (With safe local merging)
 export const fetchReviews = async () => {
+  const local = getLocalReviews();
   if (isSupabaseConfigured() && supabase) {
     try {
       const { data, error } = await supabase
@@ -327,24 +328,33 @@ export const fetchReviews = async () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data) {
-        localStorage.setItem('soundboxd_reviews', JSON.stringify(data));
-        return data;
+        const mergedMap = new Map();
+        local.forEach(r => mergedMap.set(r.id || r.album_id, r));
+        data.forEach(r => mergedMap.set(r.id || r.album_id, r));
+        const merged = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.created_at || b.listened_date) - new Date(a.created_at || a.listened_date)
+        );
+        localStorage.setItem('soundboxd_reviews', JSON.stringify(merged));
+        return merged;
       }
     } catch (err) {
       console.warn('Supabase fetch error, fallback to local storage', err);
     }
   }
-  return getLocalReviews();
+  return local;
 };
 
 export const createOrUpdateReview = async (reviewData) => {
-  saveLocalReview(reviewData); // Save locally immediately
+  const cleanReview = {
+    ...reviewData,
+    id: (reviewData.id && reviewData.id.includes('-')) ? reviewData.id : generateUUID()
+  };
+
+  saveLocalReview(cleanReview); // Save locally immediately!
+
   if (isSupabaseConfigured() && supabase) {
     try {
-      const payload = { ...reviewData };
-      if (!payload.id || payload.id.startsWith('demo-') || payload.id.startsWith('rev-')) {
-        delete payload.id;
-      }
+      const payload = { ...cleanReview };
       const { data, error } = await supabase.from('reviews').upsert(payload).select();
       if (error) {
         console.error('Erro de inserção no Supabase:', error);
@@ -355,7 +365,7 @@ export const createOrUpdateReview = async (reviewData) => {
       console.warn('Supabase upsert error:', err);
     }
   }
-  return reviewData;
+  return cleanReview;
 };
 
 export const deleteReview = async (id) => {
