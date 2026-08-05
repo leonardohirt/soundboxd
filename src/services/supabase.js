@@ -27,13 +27,13 @@ export const generateUUID = () => {
   });
 };
 
-// Initial sample data for rich offline demo
+// Standard generic initial profile data
 const INITIAL_DEMO_PROFILE = {
   id: generateUUID(),
-  username: 'leonardohirt',
-  full_name: 'Leonardo Hirt',
+  username: 'ouvinte',
+  full_name: 'Usuário Soundboxd',
   avatar_url: '',
-  bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias. Fã de MPB, Rock 70s e Synthwave.',
+  bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias.',
   favorite_artist: 'Daft Punk & Milton Nascimento',
   favorite_genre: 'MPB / Rock / Eletrônica'
 };
@@ -203,7 +203,6 @@ export const fetchReviews = async () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data) {
-        // Merge Supabase reviews with local reviews
         localStorage.setItem('soundboxd_reviews', JSON.stringify(data));
         return data;
       }
@@ -219,7 +218,6 @@ export const createOrUpdateReview = async (reviewData) => {
   if (isSupabaseConfigured() && supabase) {
     try {
       const payload = { ...reviewData };
-      // Ensure id is a valid UUID or omit so Supabase generates one
       if (!payload.id || payload.id.startsWith('demo-') || payload.id.startsWith('rev-')) {
         delete payload.id;
       }

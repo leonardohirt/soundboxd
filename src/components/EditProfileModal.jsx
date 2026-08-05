@@ -59,7 +59,7 @@ export function EditProfileModal({ profile, onClose, onSave }) {
               <img src={avatarUrl} alt="" style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover' }} />
             ) : (
               <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-green), var(--color-cyan))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 800, color: '#000' }}>
-                {fullName ? fullName.substring(0, 2).toUpperCase() : 'LH'}
+                {fullName ? fullName.substring(0, 2).toUpperCase() : 'SB'}
               </div>
             )}
             <div style={{ flex: 1 }}>
@@ -100,7 +100,7 @@ export function EditProfileModal({ profile, onClose, onSave }) {
               className="input-field"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="leonardohirt"
+              placeholder="seunome"
               required
             />
           </div>

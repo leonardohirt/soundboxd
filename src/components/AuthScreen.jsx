@@ -16,7 +16,6 @@ export function AuthScreen({ onLoginSuccess }) {
     setErrorMsg('');
     setLoading(true);
 
-    // If Supabase is configured, use official Supabase Auth
     if (isSupabaseConfigured() && supabase) {
       try {
         if (isSignUp) {
@@ -67,13 +66,13 @@ export function AuthScreen({ onLoginSuccess }) {
         return;
       }
     } else {
-      // Local Auth Fallback (Local Storage Session)
+      // Local Auth Fallback
       setTimeout(() => {
         const userSession = {
           id: 'usr-' + Date.now(),
           email,
-          full_name: isSignUp ? fullName : (email.split('@')[0] || 'Leonardo Hirt'),
-          username: isSignUp ? username.replace('@', '') : (email.split('@')[0] || 'leonardohirt'),
+          full_name: isSignUp ? fullName : (email.split('@')[0] || 'Usuário Soundboxd'),
+          username: isSignUp ? username.replace('@', '') : (email.split('@')[0] || 'ouvinte'),
           avatar_url: ''
         };
         localStorage.setItem('soundboxd_session', JSON.stringify(userSession));
@@ -86,9 +85,9 @@ export function AuthScreen({ onLoginSuccess }) {
   const handleGuestLogin = () => {
     const guestSession = {
       id: 'guest-user',
-      email: 'convidado@soundboxd.app',
-      full_name: 'Leonardo Hirt (Visitante)',
-      username: 'leonardohirt',
+      email: 'visitante@soundboxd.app',
+      full_name: 'Ouvinte Visitante',
+      username: 'visitante',
       avatar_url: ''
     };
     localStorage.setItem('soundboxd_session', JSON.stringify(guestSession));
@@ -226,7 +225,7 @@ export function AuthScreen({ onLoginSuccess }) {
                   <input
                     type="text"
                     className="input-field"
-                    placeholder="ex: leonardohirt"
+                    placeholder="ex: seunome"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     style={{ paddingLeft: '38px' }}

@@ -129,16 +129,16 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
               color: '#000',
               boxShadow: '0 0 20px var(--color-green-glow)'
             }}>
-              {profile?.full_name ? profile.full_name.substring(0, 2).toUpperCase() : 'LH'}
+              {profile?.full_name ? profile.full_name.substring(0, 2).toUpperCase() : 'SB'}
             </div>
           )}
 
           <div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
-              {profile?.full_name || 'Leonardo Hirt'}
+              {profile?.full_name || 'Usuário Soundboxd'}
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--color-green)', fontWeight: 600, marginTop: '2px' }}>
-              @{profile?.username || 'leonardohirt'}
+              @{profile?.username || 'ouvinte'}
             </p>
           </div>
         </div>
