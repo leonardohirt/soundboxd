@@ -8,11 +8,12 @@ import { MiniPlayer } from './components/MiniPlayer';
 import { SettingsModal } from './components/SettingsModal';
 import { ProfileView } from './components/ProfileView';
 import { EditProfileModal } from './components/EditProfileModal';
+import { CreateListModal } from './components/CreateListModal';
 import { AuthScreen } from './components/AuthScreen';
 import { StarRating } from './components/StarRating';
 import { searchAlbums, getTrendingAlbums } from './services/musicApi';
-import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, fetchProfile, updateProfile, supabase } from './services/supabase';
-import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut } from 'lucide-react';
+import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, fetchProfile, updateProfile, supabase } from './services/supabase';
+import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart } from 'lucide-react';
 
 export default function App() {
   // Session State
@@ -39,6 +40,7 @@ export default function App() {
   const [editingReview, setEditingReview] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showCreateList, setShowCreateList] = useState(false);
 
   // MiniPlayer state
   const [currentTrack, setCurrentTrack] = useState(null);
@@ -120,6 +122,13 @@ export default function App() {
     setShowEditProfile(false);
   };
 
+  // List Save Handler
+  const handleSaveList = (newList) => {
+    const updatedLists = saveLocalList(newList);
+    setLists(updatedLists);
+    setShowCreateList(false);
+  };
+
   // Quick helper to check if an album has been reviewed
   const getReviewForAlbum = (albumId) => {
     return reviews.find(r => String(r.album_id) === String(albumId));
@@ -162,7 +171,7 @@ export default function App() {
             }}>
               <div>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  BEM-VINDO, {profile?.full_name?.split(' ')[0]?.toUpperCase() || 'OUVINTE'}!
+                  BEM-VINDO!
                 </span>
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: '4px 0 2px 0' }}>
                   O que você ouviu hoje?
@@ -431,14 +440,21 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: LISTAS / LISTS */}
+        {/* TAB 4: LISTAS / LISTAS & COLEÇÕES PERSONALIZADAS */}
         {activeTab === 'lists' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>Coleções & Listas</h2>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Crie listas temáticas de álbuns</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Crie e gerencie suas coleções temáticas de álbuns</p>
               </div>
+              <button
+                className="btn-primary"
+                style={{ width: 'auto', padding: '8px 14px', fontSize: '12px' }}
+                onClick={() => setShowCreateList(true)}
+              >
+                <Plus size={16} /> Criar Lista
+              </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -452,20 +468,33 @@ export default function App() {
                     padding: '16px'
                   }}
                 >
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>{list.title}</h3>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{list.description}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>{list.title}</h3>
+                    <span style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 700 }}>{list.items ? list.items.length : 0} álbuns</span>
+                  </div>
+                  {list.description && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{list.description}</p>
+                  )}
                   
                   {/* List item covers */}
-                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {list.items.map((item, idx) => (
-                      <img
-                        key={idx}
-                        src={item.cover_url}
-                        alt=""
-                        style={{ width: '60px', height: '60px', borderRadius: '6px', objectFit: 'cover' }}
-                      />
-                    ))}
-                  </div>
+                  {list.items && list.items.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                      {list.items.map((item, idx) => (
+                        <div key={idx} style={{ flexShrink: 0, textAlign: 'center', width: '60px' }}>
+                          <img
+                            src={item.cover_url}
+                            alt=""
+                            style={{ width: '60px', height: '60px', borderRadius: '6px', objectFit: 'cover' }}
+                          />
+                          <div style={{ fontSize: '9px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                            {item.album_title}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Lista vazia.</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -530,6 +559,14 @@ export default function App() {
           profile={profile}
           onClose={() => setShowEditProfile(false)}
           onSave={handleSaveProfile}
+        />
+      )}
+
+      {/* Create List Modal */}
+      {showCreateList && (
+        <CreateListModal
+          onClose={() => setShowCreateList(false)}
+          onSaveList={handleSaveList}
         />
       )}
     </>

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { User, Edit3, Heart, Star, Disc, Music, BarChart2, BookOpen, Clock, Award, Filter, Sparkles } from 'lucide-react';
+import { User, Edit3, Heart, Star, Disc, Music, BarChart2, BookOpen, Clock, Award, Filter, Sparkles, Check } from 'lucide-react';
 import { AlbumCard } from './AlbumCard';
 import { StarRating } from './StarRating';
+import { getLocalTrackRatings } from '../services/supabase';
 
 export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile }) {
-  const [subTab, setSubTab] = useState('stats'); // 'stats' | 'reviews' | 'favorites'
+  const [subTab, setSubTab] = useState('stats'); // 'stats' | 'reviews' | 'tracks' | 'favorites'
   const [reviewSearch, setReviewSearch] = useState('');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'rating_desc' | 'rating_asc'
+
+  const allTrackRatings = getLocalTrackRatings();
+  const trackRatingList = Object.values(allTrackRatings);
 
   // Computing stats
   const totalAlbums = reviews.length;
@@ -179,8 +183,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Favoritos</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-cyan)' }}>~{totalHours}h</div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Ouvidas</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-cyan)' }}>{trackRatingList.length}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Músicas</div>
           </div>
         </div>
       </div>
@@ -229,15 +233,15 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             borderBottom: subTab === 'stats' ? '2px solid var(--color-green)' : 'none',
             color: subTab === 'stats' ? 'var(--color-green)' : 'var(--text-secondary)',
             fontWeight: 700,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <BarChart2 size={16} /> Estatísticas
+          <BarChart2 size={14} /> Stats
         </button>
         <button
           onClick={() => setSubTab('reviews')}
@@ -249,15 +253,35 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             borderBottom: subTab === 'reviews' ? '2px solid var(--color-green)' : 'none',
             color: subTab === 'reviews' ? 'var(--color-green)' : 'var(--text-secondary)',
             fontWeight: 700,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <BookOpen size={16} /> Resenhas ({reviews.length})
+          <BookOpen size={14} /> Resenhas ({reviews.length})
+        </button>
+        <button
+          onClick={() => setSubTab('tracks')}
+          style={{
+            flex: 1,
+            padding: '10px',
+            background: 'none',
+            border: 'none',
+            borderBottom: subTab === 'tracks' ? '2px solid var(--color-green)' : 'none',
+            color: subTab === 'tracks' ? 'var(--color-green)' : 'var(--text-secondary)',
+            fontWeight: 700,
+            fontSize: '12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px'
+          }}
+        >
+          <Music size={14} /> Músicas ({trackRatingList.length})
         </button>
         <button
           onClick={() => setSubTab('favorites')}
@@ -269,15 +293,15 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             borderBottom: subTab === 'favorites' ? '2px solid var(--color-green)' : 'none',
             color: subTab === 'favorites' ? 'var(--color-green)' : 'var(--text-secondary)',
             fontWeight: 700,
-            fontSize: '13px',
+            fontSize: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '6px'
+            gap: '4px'
           }}
         >
-          <Heart size={16} /> Favoritos ({favoriteAlbums.length})
+          <Heart size={14} /> Favoritos
         </button>
       </div>
 
@@ -364,7 +388,6 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
       {/* SUB TAB 2: MINHAS RESENHAS */}
       {subTab === 'reviews' && (
         <div>
-          {/* Search & Filter row */}
           <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
             <input
               type="text"
@@ -429,7 +452,53 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
         </div>
       )}
 
-      {/* SUB TAB 3: ÁLBUNS FAVORITOS */}
+      {/* SUB TAB 3: MÚSICAS AVALIADAS INDIVIDUALMENTE */}
+      {subTab === 'tracks' && (
+        <div>
+          {trackRatingList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '13px', background: 'var(--bg-card)', borderRadius: '12px' }}>
+              <Music size={36} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
+              <p style={{ color: 'var(--text-secondary)' }}>Nenhuma música avaliada individualmente ainda.</p>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Abra qualquer álbum e toque nas estrelas das faixas para avaliar músicas específicas!
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {trackRatingList.map((tr, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div style={{ overflow: 'hidden' }}>
+                    <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {tr.track_name}
+                    </h4>
+                    <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>
+                      {tr.artist_name}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {tr.is_favorite && <Heart size={14} color="#ff4d6d" fill="#ff4d6d" />}
+                    <StarRating rating={tr.rating} readonly size={12} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUB TAB 4: ÁLBUNS FAVORITOS */}
       {subTab === 'favorites' && (
         <div>
           {favoriteAlbums.length === 0 ? (
