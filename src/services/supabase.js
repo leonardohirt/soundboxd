@@ -178,6 +178,62 @@ export const deleteLocalReview = (id) => {
   return updated;
 };
 
+// Track Ratings storage helpers
+export const getLocalTrackRatings = () => {
+  const data = localStorage.getItem('soundboxd_track_ratings');
+  return data ? JSON.parse(data) : {};
+};
+
+export const saveLocalTrackRating = (trackRatingData) => {
+  const ratings = getLocalTrackRatings();
+  const key = `${trackRatingData.album_id}_${trackRatingData.track_id}`;
+  ratings[key] = { ...ratings[key], ...trackRatingData };
+  localStorage.setItem('soundboxd_track_ratings', JSON.stringify(ratings));
+  return ratings;
+};
+
+export const fetchTrackRatings = async (albumId) => {
+  if (isSupabaseConfigured() && supabase && albumId) {
+    try {
+      const { data, error } = await supabase
+        .from('track_ratings')
+        .select('*')
+        .eq('album_id', String(albumId));
+      if (!error && data) {
+        const local = getLocalTrackRatings();
+        data.forEach(tr => {
+          local[`${tr.album_id}_${tr.track_id}`] = tr;
+        });
+        localStorage.setItem('soundboxd_track_ratings', JSON.stringify(local));
+        return local;
+      }
+    } catch (err) {
+      console.warn('Supabase track ratings fetch error', err);
+    }
+  }
+  return getLocalTrackRatings();
+};
+
+export const saveTrackRating = async (trackRatingData) => {
+  saveLocalTrackRating(trackRatingData);
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const payload = {
+        album_id: String(trackRatingData.album_id),
+        track_id: String(trackRatingData.track_id),
+        track_name: trackRatingData.track_name,
+        artist_name: trackRatingData.artist_name || '',
+        rating: Number(trackRatingData.rating),
+        is_favorite: Boolean(trackRatingData.is_favorite)
+      };
+      await supabase.from('track_ratings').upsert(payload);
+    } catch (err) {
+      console.warn('Supabase track rating insert error:', err);
+    }
+  }
+  return trackRatingData;
+};
+
 export const getLocalLists = () => {
   const data = localStorage.getItem('soundboxd_lists');
   if (!data) {
