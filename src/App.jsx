@@ -8,12 +8,19 @@ import { MiniPlayer } from './components/MiniPlayer';
 import { SettingsModal } from './components/SettingsModal';
 import { ProfileView } from './components/ProfileView';
 import { EditProfileModal } from './components/EditProfileModal';
+import { AuthScreen } from './components/AuthScreen';
 import { StarRating } from './components/StarRating';
 import { searchAlbums, getTrendingAlbums } from './services/musicApi';
-import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, fetchProfile, updateProfile } from './services/supabase';
-import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, Heart } from 'lucide-react';
+import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, fetchProfile, updateProfile, supabase } from './services/supabase';
+import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut } from 'lucide-react';
 
 export default function App() {
+  // Session State
+  const [userSession, setUserSession] = useState(() => {
+    const saved = localStorage.getItem('soundboxd_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [activeTab, setActiveTab] = useState('home');
   const [trendingAlbums, setTrendingAlbums] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -36,10 +43,12 @@ export default function App() {
   // MiniPlayer state
   const [currentTrack, setCurrentTrack] = useState(null);
 
-  // Load Initial Data
+  // Load Initial Data when logged in
   useEffect(() => {
-    loadData();
-  }, []);
+    if (userSession) {
+      loadData();
+    }
+  }, [userSession]);
 
   const loadData = async () => {
     setLoading(true);
@@ -50,10 +59,31 @@ export default function App() {
     ]);
     setTrendingAlbums(trending);
     setReviews(revs);
-    setProfile(prof);
+    setProfile(prof || {
+      full_name: userSession.full_name,
+      username: userSession.username,
+      avatar_url: userSession.avatar_url,
+      bio: ''
+    });
     setLists(getLocalLists());
     setLoading(false);
   };
+
+  // Logout Handler
+  const handleLogout = () => {
+    if (window.confirm('Deseja realmente sair da sua conta?')) {
+      localStorage.removeItem('soundboxd_session');
+      if (supabase) {
+        supabase.auth.signOut();
+      }
+      setUserSession(null);
+    }
+  };
+
+  // If user is not logged in, display Auth Screen first!
+  if (!userSession) {
+    return <AuthScreen onLoginSuccess={(session) => setUserSession(session)} />;
+  }
 
   // Search Handler
   const handleSearch = async (term) => {
@@ -97,8 +127,21 @@ export default function App() {
 
   return (
     <>
-      {/* Mobile Top Header */}
+      {/* Mobile Top Header with Logout Option */}
       <Header onOpenSettings={() => setShowSettings(true)} />
+
+      {/* Logout Bar Banner */}
+      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', borderBottom: '1px solid var(--border-color)' }}>
+        <span style={{ color: 'var(--text-secondary)' }}>
+          Conectado como <strong style={{ color: '#fff' }}>@{profile?.username || userSession.username}</strong>
+        </span>
+        <button
+          onClick={handleLogout}
+          style={{ background: 'none', border: 'none', color: '#ff4d6d', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          <LogOut size={12} /> Sair
+        </button>
+      </div>
 
       {/* Main Screen Content */}
       <main className="app-content">
@@ -119,7 +162,7 @@ export default function App() {
             }}>
               <div>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  DIÁRIO DE MÚSICA
+                  BEM-VINDO, {profile?.full_name?.split(' ')[0]?.toUpperCase() || 'OUVINTE'}!
                 </span>
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: '4px 0 2px 0' }}>
                   O que você ouviu hoje?
