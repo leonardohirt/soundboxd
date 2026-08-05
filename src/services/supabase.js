@@ -17,6 +17,17 @@ export const supabase = isSupabaseConfigured()
   : null;
 
 // Initial sample data for rich offline demo
+const INITIAL_DEMO_PROFILE = {
+  id: 'user-default',
+  username: 'leonardohirt',
+  full_name: 'Leonardo Hirt',
+  avatar_url: '',
+  bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias. Fã de MPB, Rock 70s e Synthwave.',
+  favorite_artist: 'Daft Punk & Milton Nascimento',
+  favorite_genre: 'MPB / Rock / Eletrônica',
+  top_four_albums: ['1440857781', '1540328103', '1440872996']
+};
+
 const INITIAL_DEMO_REVIEWS = [
   {
     id: 'demo-1',
@@ -78,7 +89,51 @@ const INITIAL_DEMO_LISTS = [
   }
 ];
 
-// LocalStorage helpers
+// Profile storage helpers
+export const getLocalProfile = () => {
+  const data = localStorage.getItem('soundboxd_profile');
+  if (!data) {
+    localStorage.setItem('soundboxd_profile', JSON.stringify(INITIAL_DEMO_PROFILE));
+    return INITIAL_DEMO_PROFILE;
+  }
+  return JSON.parse(data);
+};
+
+export const saveLocalProfile = (profileData) => {
+  const current = getLocalProfile();
+  const updated = { ...current, ...profileData };
+  localStorage.setItem('soundboxd_profile', JSON.stringify(updated));
+  return updated;
+};
+
+export const fetchProfile = async () => {
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .single();
+      if (!error && data) return data;
+    } catch (err) {
+      console.warn('Supabase profile fetch error', err);
+    }
+  }
+  return getLocalProfile();
+};
+
+export const updateProfile = async (profileData) => {
+  saveLocalProfile(profileData);
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('profiles').upsert(profileData);
+    } catch (err) {
+      console.warn('Supabase profile update error', err);
+    }
+  }
+  return profileData;
+};
+
+// Reviews storage helpers
 export const getLocalReviews = () => {
   const data = localStorage.getItem('soundboxd_reviews');
   if (!data) {

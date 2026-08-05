@@ -6,16 +6,19 @@ import { AlbumDetailModal } from './components/AlbumDetailModal';
 import { ReviewModal } from './components/ReviewModal';
 import { MiniPlayer } from './components/MiniPlayer';
 import { SettingsModal } from './components/SettingsModal';
+import { ProfileView } from './components/ProfileView';
+import { EditProfileModal } from './components/EditProfileModal';
 import { StarRating } from './components/StarRating';
 import { searchAlbums, getTrendingAlbums } from './services/musicApi';
-import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList } from './services/supabase';
-import { Search, Sparkles, Plus, BookOpen, Heart, Flame, Disc, Music, Trash2, Edit3, Share2, Layers } from 'lucide-react';
+import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, fetchProfile, updateProfile } from './services/supabase';
+import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, Heart } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [trendingAlbums, setTrendingAlbums] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [lists, setLists] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Search state
@@ -28,6 +31,7 @@ export default function App() {
   const [reviewAlbum, setReviewAlbum] = useState(null);
   const [editingReview, setEditingReview] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   // MiniPlayer state
   const [currentTrack, setCurrentTrack] = useState(null);
@@ -39,12 +43,14 @@ export default function App() {
 
   const loadData = async () => {
     setLoading(true);
-    const [trending, revs] = await Promise.all([
+    const [trending, revs, prof] = await Promise.all([
       getTrendingAlbums(),
-      fetchReviews()
+      fetchReviews(),
+      fetchProfile()
     ]);
     setTrendingAlbums(trending);
     setReviews(revs);
+    setProfile(prof);
     setLists(getLocalLists());
     setLoading(false);
   };
@@ -77,17 +83,17 @@ export default function App() {
     }
   };
 
+  // Profile Save Handler
+  const handleSaveProfile = async (updatedProfile) => {
+    await updateProfile(updatedProfile);
+    setProfile(updatedProfile);
+    setShowEditProfile(false);
+  };
+
   // Quick helper to check if an album has been reviewed
   const getReviewForAlbum = (albumId) => {
     return reviews.find(r => String(r.album_id) === String(albumId));
   };
-
-  // Analytics computation for Profile Tab
-  const totalAlbums = reviews.length;
-  const avgRating = totalAlbums > 0
-    ? (reviews.reduce((acc, r) => acc + Number(r.rating || 0), 0) / totalAlbums).toFixed(1)
-    : '0.0';
-  const favoriteAlbums = reviews.filter(r => r.is_favorite);
 
   return (
     <>
@@ -423,53 +429,14 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: PERFIL & ESTATÍSTICAS */}
+        {/* TAB 5: PERFIL & ESTATÍSTICAS COMPLETO */}
         {activeTab === 'profile' && (
-          <div>
-            {/* User Profile Card */}
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '20px', textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-green), var(--color-cyan))', margin: '0 auto 12px auto', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 800, color: '#000', boxShadow: '0 4px 20px var(--color-green-glow)' }}>
-                LH
-              </div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>Leonardo Hirt</h2>
-              <p style={{ fontSize: '12px', color: 'var(--color-green)', fontWeight: 600 }}>@leonardohirt</p>
-
-              {/* Stats Summary Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '16px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px' }}>
-                <div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>{totalAlbums}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Álbuns</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-amber)' }}>{avgRating}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Média ★</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ff4d6d' }}>{favoriteAlbums.length}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Favoritos</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Favorite Hall of Fame */}
-            {favoriteAlbums.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Heart size={16} color="#ff4d6d" fill="#ff4d6d" /> Corredor da Fama (Álbuns Favoritos)
-                </h3>
-                <div className="album-grid">
-                  {favoriteAlbums.map((fav) => (
-                    <AlbumCard
-                      key={fav.id}
-                      album={fav}
-                      review={fav}
-                      onClick={(alb) => setSelectedAlbum(alb)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <ProfileView
+            profile={profile}
+            reviews={reviews}
+            onSelectAlbum={(alb) => setSelectedAlbum(alb)}
+            onOpenEditProfile={() => setShowEditProfile(true)}
+          />
         )}
 
       </main>
@@ -511,6 +478,15 @@ export default function App() {
         <SettingsModal
           onClose={() => setShowSettings(false)}
           onSaveConfig={loadData}
+        />
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setShowEditProfile(false)}
+          onSave={handleSaveProfile}
         />
       )}
     </>
