@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Heart, RotateCcw, Calendar, Save } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StarRating } from './StarRating';
+import { generateUUID } from '../services/supabase';
 
 export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
   const [rating, setRating] = useState(existingReview?.rating || 4.0);
@@ -28,18 +29,18 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     const reviewData = {
-      id: existingReview?.id || 'rev-' + Date.now(),
-      album_id: album.album_id,
+      id: existingReview?.id || generateUUID(),
+      album_id: String(album.album_id),
       album_title: album.album_title,
       artist_name: album.artist_name,
       cover_url: album.cover_url,
       release_year: album.release_year,
       genre: album.genre,
-      rating,
+      rating: Number(rating),
       review_text: reviewText,
       listened_date: listenedDate,
-      is_relisten: isRelisten,
-      is_favorite: isFavorite,
+      is_relisten: Boolean(isRelisten),
+      is_favorite: Boolean(isFavorite),
       created_at: existingReview?.created_at || new Date().toISOString()
     };
 

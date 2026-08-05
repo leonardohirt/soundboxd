@@ -16,21 +16,31 @@ export const supabase = isSupabaseConfigured()
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
+export const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 // Initial sample data for rich offline demo
 const INITIAL_DEMO_PROFILE = {
-  id: 'user-default',
+  id: generateUUID(),
   username: 'leonardohirt',
   full_name: 'Leonardo Hirt',
   avatar_url: '',
   bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias. Fã de MPB, Rock 70s e Synthwave.',
   favorite_artist: 'Daft Punk & Milton Nascimento',
-  favorite_genre: 'MPB / Rock / Eletrônica',
-  top_four_albums: ['1440857781', '1540328103', '1440872996']
+  favorite_genre: 'MPB / Rock / Eletrônica'
 };
 
 const INITIAL_DEMO_REVIEWS = [
   {
-    id: 'demo-1',
+    id: generateUUID(),
     album_id: '1440857781',
     album_title: 'Random Access Memories',
     artist_name: 'Daft Punk',
@@ -45,7 +55,7 @@ const INITIAL_DEMO_REVIEWS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'demo-2',
+    id: generateUUID(),
     album_id: '1540328103',
     album_title: 'Clube da Esquina',
     artist_name: 'Milton Nascimento & Lô Borges',
@@ -60,7 +70,7 @@ const INITIAL_DEMO_REVIEWS = [
     created_at: new Date(Date.now() - 86400000).toISOString()
   },
   {
-    id: 'demo-3',
+    id: generateUUID(),
     album_id: '1440872996',
     album_title: 'Abbey Road',
     artist_name: 'The Beatles',
@@ -68,7 +78,7 @@ const INITIAL_DEMO_REVIEWS = [
     release_year: '1969',
     genre: 'Rock',
     rating: 4.5,
-    review_text: 'O medly no lado B é o ápice técnico e criativo dos Beatles.',
+    review_text: 'O medley no lado B é o ápice técnico e criativo dos Beatles.',
     listened_date: '2026-08-01',
     is_relisten: true,
     is_favorite: false,
@@ -78,7 +88,7 @@ const INITIAL_DEMO_REVIEWS = [
 
 const INITIAL_DEMO_LISTS = [
   {
-    id: 'list-1',
+    id: generateUUID(),
     title: 'Álbuns Essenciais para Ouvir de Madrugada',
     description: 'Vibes noturnas, sintetizadores e MPB suave para se desligar do mundo.',
     created_at: new Date().toISOString(),
@@ -112,8 +122,8 @@ export const fetchProfile = async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .single();
-      if (!error && data) return data;
+        .limit(1);
+      if (!error && data && data.length > 0) return data[0];
     } catch (err) {
       console.warn('Supabase profile fetch error', err);
     }
@@ -125,7 +135,11 @@ export const updateProfile = async (profileData) => {
   saveLocalProfile(profileData);
   if (isSupabaseConfigured() && supabase) {
     try {
-      await supabase.from('profiles').upsert(profileData);
+      const payload = { ...profileData };
+      if (!payload.id || !payload.id.includes('-')) {
+        delete payload.id;
+      }
+      await supabase.from('profiles').upsert(payload);
     } catch (err) {
       console.warn('Supabase profile update error', err);
     }
@@ -145,7 +159,7 @@ export const getLocalReviews = () => {
 
 export const saveLocalReview = (newReview) => {
   const reviews = getLocalReviews();
-  const index = reviews.findIndex(r => r.id === newReview.id);
+  const index = reviews.findIndex(r => r.id === newReview.id || r.album_id === newReview.album_id);
   let updated;
   if (index >= 0) {
     updated = [...reviews];
@@ -188,7 +202,11 @@ export const fetchReviews = async () => {
         .from('reviews')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data) return data;
+      if (!error && data) {
+        // Merge Supabase reviews with local reviews
+        localStorage.setItem('soundboxd_reviews', JSON.stringify(data));
+        return data;
+      }
     } catch (err) {
       console.warn('Supabase fetch error, fallback to local storage', err);
     }
@@ -197,12 +215,22 @@ export const fetchReviews = async () => {
 };
 
 export const createOrUpdateReview = async (reviewData) => {
-  saveLocalReview(reviewData); // save locally first
+  saveLocalReview(reviewData); // Save locally immediately
   if (isSupabaseConfigured() && supabase) {
     try {
-      await supabase.from('reviews').upsert(reviewData);
+      const payload = { ...reviewData };
+      // Ensure id is a valid UUID or omit so Supabase generates one
+      if (!payload.id || payload.id.startsWith('demo-') || payload.id.startsWith('rev-')) {
+        delete payload.id;
+      }
+      const { data, error } = await supabase.from('reviews').upsert(payload).select();
+      if (error) {
+        console.error('Erro de inserção no Supabase:', error);
+      } else if (data && data[0]) {
+        saveLocalReview(data[0]);
+      }
     } catch (err) {
-      console.warn('Supabase upsert error', err);
+      console.warn('Supabase upsert error:', err);
     }
   }
   return reviewData;
