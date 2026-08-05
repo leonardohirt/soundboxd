@@ -28,17 +28,23 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
     }
   };
 
-  // Computing stats
-  const totalAlbums = reviews.length;
-  const avgRating = totalAlbums > 0
-    ? (reviews.reduce((acc, r) => acc + Number(r.rating || 0), 0) / totalAlbums).toFixed(1)
+  // Combine both Album Reviews and Individual Track Ratings for unified stats!
+  const allRatings = [
+    ...reviews.map(r => ({ rating: Number(r.rating || 0), artist_name: r.artist_name, genre: r.genre || 'Música' })),
+    ...trackRatingList.map(t => ({ rating: Number(t.rating || 0), artist_name: t.artist_name, genre: t.genre || 'Música' }))
+  ].filter(item => item.rating > 0);
+
+  const totalEvaluations = allRatings.length;
+  const avgRating = totalEvaluations > 0
+    ? (allRatings.reduce((acc, r) => acc + r.rating, 0) / totalEvaluations).toFixed(1)
     : '0.0';
+
   const favoriteAlbums = reviews.filter(r => r.is_favorite);
 
-  // Rating distribution bar chart data (1 to 5 stars)
+  // Rating distribution bar chart data (1 to 5 stars) - combines albums & track ratings
   const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-  reviews.forEach(r => {
-    const rounded = Math.round(r.rating || 0);
+  allRatings.forEach(r => {
+    const rounded = Math.round(r.rating);
     if (rounded >= 1 && rounded <= 5) {
       ratingCounts[rounded] += 1;
     }
@@ -47,7 +53,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
 
   // Genre breakdown
   const genreCounts = {};
-  reviews.forEach(r => {
+  allRatings.forEach(r => {
     const genre = r.genre || 'Música';
     genreCounts[genre] = (genreCounts[genre] || 0) + 1;
   });
@@ -57,9 +63,11 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
 
   // Artist breakdown
   const artistCounts = {};
-  reviews.forEach(r => {
+  allRatings.forEach(r => {
     const artist = r.artist_name || 'Desconhecido';
-    artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+    if (artist && artist !== 'Desconhecido') {
+      artistCounts[artist] = (artistCounts[artist] || 0) + 1;
+    }
   });
   const topArtists = Object.entries(artistCounts)
     .sort((a, b) => b[1] - a[1])
@@ -186,7 +194,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
         {/* Quick Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>{totalAlbums}</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>{reviews.length}</div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Álbuns</div>
           </div>
           <div style={{ textAlign: 'center' }}>
@@ -320,13 +328,13 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
         </button>
       </div>
 
-      {/* SUB TAB 1: ESTATÍSTICAS */}
+      {/* SUB TAB 1: ESTATÍSTICAS (COMBINA ÁLBUNS + MÚSICAS) */}
       {subTab === 'stats' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Rating Distribution Chart */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#fff', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Star size={16} color="var(--color-amber)" fill="var(--color-amber)" /> Distribuição de Avaliações
+              <Star size={16} color="var(--color-amber)" fill="var(--color-amber)" /> Distribuição de Avaliações ({totalEvaluations})
             </h4>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -364,12 +372,12 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {topGenres.map(([genre, count], idx) => {
-                  const pct = Math.round((count / totalAlbums) * 100);
+                  const pct = Math.round((count / (totalEvaluations || 1)) * 100);
                   return (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <span style={{ fontWeight: 600, color: '#fff' }}>{genre}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>{count} álbuns ({pct}%)</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{count} avaliações ({pct}%)</span>
                       </div>
                       <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-purple-main)', borderRadius: '3px' }}></div>
@@ -391,7 +399,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
                 {topArtists.map(([artist, count], idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{artist}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-purple-light)' }}>{count} resenha{count > 1 ? 's' : ''}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-purple-light)' }}>{count} avaliação{count > 1 ? 'ões' : ''}</span>
                   </div>
                 ))}
               </div>
