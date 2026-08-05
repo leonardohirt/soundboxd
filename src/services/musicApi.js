@@ -30,9 +30,43 @@ export const searchAlbums = async (term) => {
       spotify_url: `https://open.spotify.com/search/${encodeURIComponent(item.artistName + ' ' + item.collectionName)}`
     }));
   } catch (error) {
-    console.error('Erro na busca da iTunes API:', error);
+    console.error('Erro na busca de álbuns:', error);
     return [];
   }
+};
+
+export const searchTracks = async (term) => {
+  if (!term || term.trim().length === 0) return [];
+  try {
+    const response = await fetch(
+      `${ITUNES_BASE_URL}/search?term=${encodeURIComponent(term)}&entity=song&limit=30&country=BR`
+    );
+    const data = await response.json();
+    return (data.results || []).map((item) => ({
+      track_id: String(item.trackId),
+      track_name: item.trackCensoredName || item.trackName,
+      artist_name: item.artistName,
+      album_id: String(item.collectionId),
+      album_title: item.collectionName || item.collectionCensoredName,
+      cover_url: getHighResCover(item.artworkUrl100),
+      preview_url: item.previewUrl,
+      release_year: item.releaseDate ? item.releaseDate.substring(0, 4) : 'N/A',
+      genre: item.primaryGenreName || 'Música',
+      spotify_url: `https://open.spotify.com/search/${encodeURIComponent(item.artistName + ' ' + item.trackName)}`
+    }));
+  } catch (error) {
+    console.error('Erro na busca de músicas:', error);
+    return [];
+  }
+};
+
+export const searchAll = async (term) => {
+  if (!term || term.trim().length === 0) return { albums: [], tracks: [] };
+  const [albums, tracks] = await Promise.all([
+    searchAlbums(term),
+    searchTracks(term)
+  ]);
+  return { albums, tracks };
 };
 
 export const getAlbumDetails = async (albumId) => {

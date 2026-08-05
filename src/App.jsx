@@ -11,9 +11,9 @@ import { EditProfileModal } from './components/EditProfileModal';
 import { CreateListModal } from './components/CreateListModal';
 import { AuthScreen } from './components/AuthScreen';
 import { StarRating } from './components/StarRating';
-import { searchAlbums, getTrendingAlbums } from './services/musicApi';
-import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, fetchProfile, updateProfile, supabase } from './services/supabase';
-import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart } from 'lucide-react';
+import { searchAlbums, searchTracks, searchAll, getTrendingAlbums } from './services/musicApi';
+import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, fetchProfile, updateProfile, fetchTrackRatings, saveTrackRating, getLocalTrackRatings, supabase } from './services/supabase';
+import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart, Play, Pause, Music } from 'lucide-react';
 
 export default function App() {
   // Session State
@@ -31,8 +31,10 @@ export default function App() {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchFilter, setSearchFilter] = useState('tracks'); // 'tracks' | 'albums' | 'all'
+  const [searchResults, setSearchResults] = useState({ albums: [], tracks: [] });
   const [isSearching, setIsSearching] = useState(false);
+  const [userTrackRatings, setUserTrackRatings] = useState({});
 
   // Modals state
   const [selectedAlbum, setSelectedAlbum] = useState(null);
@@ -68,6 +70,7 @@ export default function App() {
       bio: ''
     });
     setLists(getLocalLists());
+    setUserTrackRatings(getLocalTrackRatings());
     setLoading(false);
   };
 
@@ -87,17 +90,50 @@ export default function App() {
     return <AuthScreen onLoginSuccess={(session) => setUserSession(session)} />;
   }
 
-  // Search Handler
+  // Search Handler (Supports both Tracks and Albums)
   const handleSearch = async (term) => {
     setSearchTerm(term);
     if (!term.trim()) {
-      setSearchResults([]);
+      setSearchResults({ albums: [], tracks: [] });
       return;
     }
     setIsSearching(true);
-    const results = await searchAlbums(term);
-    setSearchResults(results);
+    const res = await searchAll(term);
+    setSearchResults(res);
     setIsSearching(false);
+  };
+
+  // Track Rating from Search Results
+  const handleRateTrackFromSearch = async (track, rating) => {
+    const key = `${track.album_id}_${track.track_id}`;
+    const current = userTrackRatings[key] || {};
+    const updated = {
+      album_id: String(track.album_id),
+      track_id: String(track.track_id),
+      track_name: track.track_name,
+      artist_name: track.artist_name,
+      rating,
+      is_favorite: Boolean(current.is_favorite)
+    };
+
+    setUserTrackRatings(prev => ({ ...prev, [key]: updated }));
+    await saveTrackRating(updated);
+  };
+
+  const handleToggleFavoriteTrackFromSearch = async (track) => {
+    const key = `${track.album_id}_${track.track_id}`;
+    const current = userTrackRatings[key] || {};
+    const updated = {
+      album_id: String(track.album_id),
+      track_id: String(track.track_id),
+      track_name: track.track_name,
+      artist_name: track.artist_name,
+      rating: current.rating || 5.0,
+      is_favorite: !current.is_favorite
+    };
+
+    setUserTrackRatings(prev => ({ ...prev, [key]: updated }));
+    await saveTrackRating(updated);
   };
 
   // Review Handlers
@@ -177,7 +213,7 @@ export default function App() {
                   O que você ouviu hoje?
                 </h2>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Avalie álbuns, escreva resenhas e ouça prévias.
+                  Avalie músicas e álbuns, escreva resenhas e ouça prévias.
                 </p>
               </div>
               <button
@@ -236,7 +272,7 @@ export default function App() {
                     style={{ margin: '12px auto 0 auto', width: 'auto', padding: '8px 16px', fontSize: '12px' }}
                     onClick={() => setActiveTab('search')}
                   >
-                    Buscar Primeiro Álbum
+                    Buscar Primeira Música ou Álbum
                   </button>
                 </div>
               ) : (
@@ -291,14 +327,15 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: BUSCAR / SEARCH */}
+        {/* TAB 2: BUSCAR / SEARCH (Supports Músicas & Álbuns) */}
         {activeTab === 'search' && (
           <div>
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
+            {/* Search Bar Input */}
+            <div style={{ position: 'relative', marginBottom: '12px' }}>
               <input
                 type="text"
                 className="input-field"
-                placeholder="Buscar por álbum, artista ou banda..."
+                placeholder="Buscar por música, artista ou álbum..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 style={{ paddingLeft: '40px' }}
@@ -307,29 +344,201 @@ export default function App() {
               <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
             </div>
 
+            {/* Filter Pills: Músicas vs Álbuns vs Todas */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setSearchFilter('tracks')}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '20px',
+                  border: searchFilter === 'tracks' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'tracks' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
+                  color: searchFilter === 'tracks' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Music size={14} /> Músicas ({searchResults.tracks.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSearchFilter('albums')}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '20px',
+                  border: searchFilter === 'albums' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'albums' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
+                  color: searchFilter === 'albums' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Disc size={14} /> Álbuns ({searchResults.albums.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSearchFilter('all')}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '20px',
+                  border: searchFilter === 'all' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'all' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
+                  color: searchFilter === 'all' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                Todas
+              </button>
+            </div>
+
             {isSearching ? (
               <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                Buscando na iTunes Music API...
+                Buscando músicas e álbuns na iTunes Music API...
               </div>
-            ) : searchResults.length > 0 ? (
+            ) : (searchResults.tracks.length > 0 || searchResults.albums.length > 0) ? (
               <div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 600 }}>
-                  RESULTADOS PARA "{searchTerm}" ({searchResults.length})
-                </p>
-                <div className="album-grid">
-                  {searchResults.map((album) => (
-                    <AlbumCard
-                      key={album.album_id}
-                      album={album}
-                      review={getReviewForAlbum(album.album_id)}
-                      onClick={(alb) => setSelectedAlbum(alb)}
-                    />
-                  ))}
-                </div>
+
+                {/* TRACKS / MÚSICAS RESULTS SECTION */}
+                {(searchFilter === 'tracks' || searchFilter === 'all') && searchResults.tracks.length > 0 && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 800 }}>
+                      MÚSICAS ENCONTRADAS ({searchResults.tracks.length})
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {searchResults.tracks.map((track) => {
+                        const isPlaying = currentTrack?.track_id === track.track_id;
+                        const key = `${track.album_id}_${track.track_id}`;
+                        const currentData = userTrackRatings[key] || {};
+                        const rating = currentData.rating || 0;
+                        const isFav = currentData.is_favorite || false;
+
+                        return (
+                          <div
+                            key={track.track_id}
+                            style={{
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '12px',
+                              padding: '12px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <img
+                                src={track.cover_url}
+                                alt=""
+                                style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, cursor: 'pointer' }}
+                                onClick={() => setSelectedAlbum(track)}
+                              />
+                              <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {track.track_name}
+                                </h4>
+                                <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>
+                                  {track.artist_name} • <span style={{ color: 'var(--text-secondary)' }}>{track.album_title}</span>
+                                </p>
+                              </div>
+
+                              {track.preview_url && (
+                                <button
+                                  onClick={() => setCurrentTrack({ ...track, cover_url: track.cover_url })}
+                                  style={{
+                                    background: isPlaying ? 'var(--color-green)' : 'rgba(255,255,255,0.1)',
+                                    color: isPlaying ? '#000' : '#fff',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  {isPlaying ? <Pause size={16} fill="#000" /> : <Play size={16} style={{ marginLeft: '2px' }} />}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Direct Song Rating & Actions bar */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>Avaliar:</span>
+                                <StarRating
+                                  rating={rating}
+                                  onRatingChange={(val) => handleRateTrackFromSearch(track, val)}
+                                  size={14}
+                                />
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <button
+                                  onClick={() => handleToggleFavoriteTrackFromSearch(track)}
+                                  style={{ background: 'none', border: 'none', color: isFav ? '#ff4d6d' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600 }}
+                                >
+                                  <Heart size={14} fill={isFav ? '#ff4d6d' : 'none'} />
+                                  <span>{isFav ? 'Destaque' : 'Favoritar'}</span>
+                                </button>
+
+                                <button
+                                  onClick={() => setSelectedAlbum(track)}
+                                  style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  Ver Álbum
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ALBUMS RESULTS SECTION */}
+                {(searchFilter === 'albums' || searchFilter === 'all') && searchResults.albums.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 800 }}>
+                      ÁLBUNS ENCONTRADOS ({searchResults.albums.length})
+                    </p>
+                    <div className="album-grid">
+                      {searchResults.albums.map((album) => (
+                        <AlbumCard
+                          key={album.album_id}
+                          album={album}
+                          review={getReviewForAlbum(album.album_id)}
+                          onClick={(alb) => setSelectedAlbum(alb)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             ) : searchTerm ? (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                Nenhum álbum encontrado para "{searchTerm}".
+                Nenhuma música ou álbum encontrado para "{searchTerm}".
               </div>
             ) : (
               <div>
@@ -430,6 +639,7 @@ export default function App() {
 
                       <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
                         <span>Escutado em: {new Date(rev.listened_date || rev.created_at).toLocaleDateString('pt-BR')}</span>
+                        {rev.is_relisten && <span style={{ color: 'var(--color-cyan)' }}>• Re-ouviu</span>}
                         {rev.is_favorite && <span style={{ color: '#ff4d6d', fontWeight: 700 }}>♥ Favorito</span>}
                       </div>
                     </div>
