@@ -27,15 +27,15 @@ export const generateUUID = () => {
   });
 };
 
-// Standard generic fallback initial profile data
+// Standard clean profile fallback (No hardcoded bio or favorite artist)
 const INITIAL_DEMO_PROFILE = {
   id: generateUUID(),
   username: 'ouvinte',
   full_name: 'Usuário Soundboxd',
   avatar_url: '',
-  bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias.',
-  favorite_artist: 'Daft Punk & Milton Nascimento',
-  favorite_genre: 'MPB / Rock / Eletrônica'
+  bio: '',
+  favorite_artist: '',
+  favorite_genre: ''
 };
 
 const INITIAL_DEMO_REVIEWS = [
@@ -123,9 +123,9 @@ export const getLocalProfile = () => {
       username: session.username,
       full_name: session.full_name || 'Usuário Soundboxd',
       avatar_url: session.avatar_url || '',
-      bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias.',
-      favorite_artist: 'Daft Punk & Milton Nascimento',
-      favorite_genre: 'MPB / Rock / Eletrônica'
+      bio: session.bio || '',
+      favorite_artist: session.favorite_artist || '',
+      favorite_genre: session.favorite_genre || ''
     };
     localStorage.setItem('soundboxd_profile', JSON.stringify(userProfile));
     return userProfile;
