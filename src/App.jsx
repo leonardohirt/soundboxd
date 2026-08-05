@@ -13,7 +13,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { StarRating } from './components/StarRating';
 import { searchAlbums, searchTracks, searchAll, getTrendingAlbums } from './services/musicApi';
 import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, deleteList, fetchProfile, updateProfile, fetchTrackRatings, saveTrackRating, deleteTrackRating, getLocalTrackRatings, supabase } from './services/supabase';
-import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart, Play, Pause, Music } from 'lucide-react';
+import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart, Play, Pause, Music, User, Star } from 'lucide-react';
 
 export default function App() {
   // Session State
@@ -185,6 +185,14 @@ export default function App() {
     return reviews.find(r => String(r.album_id) === String(albumId));
   };
 
+  const userTrackList = Object.values(userTrackRatings);
+  const userAvgRating = (reviews.length + userTrackList.length) > 0
+    ? (
+        ([...reviews.map(r => Number(r.rating || 0)), ...userTrackList.map(t => Number(t.rating || 0))].reduce((a, b) => a + b, 0)) /
+        (reviews.length + userTrackList.length)
+      ).toFixed(1)
+    : '0.0';
+
   return (
     <>
       {/* Mobile Top Header with Logout Option */}
@@ -206,93 +214,91 @@ export default function App() {
       {/* Main Screen Content */}
       <main className="app-content">
 
-        {/* TAB 1: INÍCIO / HOME */}
+        {/* TAB 1: INÍCIO / HOME (PERSONALIZADA NAS AVALIAÇÕES DO USUÁRIO) */}
         {activeTab === 'home' && (
           <div>
-            {/* Quick Hero Banner */}
+            {/* User Personal Activity Hero Banner */}
             <div style={{
-              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%)',
+              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(37, 99, 235, 0.18) 100%)',
               border: '1px solid rgba(192, 132, 252, 0.3)',
-              borderRadius: '16px',
-              padding: '16px',
+              borderRadius: '18px',
+              padding: '18px',
               marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
+              position: 'relative'
             }}>
-              <div>
-                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-purple-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  BEM-VINDO!
-                </span>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: '4px 0 2px 0' }}>
-                  O que você ouviu hoje?
-                </h2>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Avalie músicas e álbuns, escreva resenhas e ouça prévias.
-                </p>
-              </div>
-              <button
-                className="btn-primary"
-                style={{ width: 'auto', padding: '10px 14px', fontSize: '12px' }}
-                onClick={() => setActiveTab('search')}
-              >
-                <Plus size={16} /> Avaliar
-              </button>
-            </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-purple-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    SEU SOUNDBOXD PERSONALIZADO
+                  </span>
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', margin: '2px 0' }}>
+                    Olá, {profile?.full_name || userSession.full_name || 'Ouvinte'}! 🎧
+                  </h2>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    Confira seu diário e suas últimas avaliações de música.
+                  </p>
+                </div>
 
-            {/* Section: Trending / Popular Albums */}
-            <div style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Flame size={16} color="var(--color-purple-light)" /> Álbuns em Destaque
-                </h3>
                 <button
+                  className="btn-primary"
+                  style={{ width: 'auto', padding: '10px 14px', fontSize: '12px' }}
                   onClick={() => setActiveTab('search')}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  Ver mais
+                  <Plus size={16} /> Avaliar Música
                 </button>
               </div>
 
-              {loading ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  Carregando catálogo...
+              {/* Personal Quick Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', background: 'rgba(15,23,42,0.6)', padding: '10px', borderRadius: '12px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>{reviews.length}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>ÁLBUNS</div>
                 </div>
-              ) : (
-                <div className="album-grid">
-                  {trendingAlbums.slice(0, 6).map((album) => (
-                    <AlbumCard
-                      key={album.album_id}
-                      album={album}
-                      review={getReviewForAlbum(album.album_id)}
-                      onClick={(alb) => setSelectedAlbum(alb)}
-                    />
-                  ))}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-purple-light)' }}>{userTrackList.length}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>MÚSICAS</div>
                 </div>
-              )}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-amber)' }}>{userAvgRating} ★</div>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>SUA MÉDIA</div>
+                </div>
+              </div>
             </div>
 
-            {/* Section: Recent Reviews Feed */}
-            <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <BookOpen size={16} color="var(--color-blue-mid)" /> Atividade Recente
-              </h3>
+            {/* SECTION 1: SUAS RESENHAS DE ÁLBUNS RECENTES */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <BookOpen size={16} color="var(--color-purple-light)" /> Suas Últimas Resenhas de Álbuns
+                </h3>
+                {reviews.length > 0 && (
+                  <button
+                    onClick={() => setActiveTab('diary')}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Ver todas ({reviews.length})
+                  </button>
+                )}
+              </div>
 
               {reviews.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px 16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <Disc size={36} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nenhuma avaliação registrada ainda.</p>
+                <div style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--bg-card)', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
+                  <Disc size={32} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Você ainda não escreveu nenhuma resenha de álbum.</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Resenhas completas de texto estão habilitadas para avaliação de álbuns!
+                  </p>
                   <button
                     className="btn-primary"
                     style={{ margin: '12px auto 0 auto', width: 'auto', padding: '8px 16px', fontSize: '12px' }}
                     onClick={() => setActiveTab('search')}
                   >
-                    Buscar Primeira Música ou Álbum
+                    Buscar Álbum para Resenhar
                   </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {reviews.slice(0, 5).map((rev) => (
+                  {reviews.slice(0, 3).map((rev) => (
                     <div
                       key={rev.id}
                       style={{
@@ -348,6 +354,87 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {/* SECTION 2: SUAS MÚSICAS AVALIADAS RECENTEMENTE */}
+            {userTrackList.length > 0 && (
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Music size={16} color="var(--color-blue-mid)" /> Suas Músicas Avaliadas ({userTrackList.length})
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('profile')}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Ver todas no perfil
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {userTrackList.slice(0, 4).map((tr, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div style={{ overflow: 'hidden' }}>
+                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {tr.track_name}
+                        </h4>
+                        <p style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 600 }}>
+                          {tr.artist_name}
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        {tr.is_favorite && <Heart size={14} color="#ff4d6d" fill="#ff4d6d" />}
+                        <StarRating rating={tr.rating} readonly size={12} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SECTION 3: ÁLBUNS EM DESTAQUE E DESCOBERTA */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Flame size={16} color="var(--color-purple-light)" /> Descubra Novos Álbuns
+                </h3>
+                <button
+                  onClick={() => setActiveTab('search')}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Buscar mais
+                </button>
+              </div>
+
+              {loading ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  Carregando catálogo...
+                </div>
+              ) : (
+                <div className="album-grid">
+                  {trendingAlbums.slice(0, 6).map((album) => (
+                    <AlbumCard
+                      key={album.album_id}
+                      album={album}
+                      review={getReviewForAlbum(album.album_id)}
+                      onClick={(alb) => setSelectedAlbum(alb)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 
