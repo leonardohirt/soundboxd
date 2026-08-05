@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Heart, RotateCcw, Calendar, Save, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StarRating } from './StarRating';
@@ -12,6 +12,16 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview, onDe
   );
   const [isRelisten, setIsRelisten] = useState(existingReview?.is_relisten || false);
   const [isFavorite, setIsFavorite] = useState(existingReview?.is_favorite || false);
+
+  useEffect(() => {
+    if (existingReview) {
+      setRating(existingReview.rating || 4.0);
+      setReviewText(existingReview.review_text || '');
+      setListenedDate(existingReview.listened_date || new Date().toISOString().split('T')[0]);
+      setIsRelisten(Boolean(existingReview.is_relisten));
+      setIsFavorite(Boolean(existingReview.is_favorite));
+    }
+  }, [existingReview]);
 
   if (!album) return null;
 
@@ -172,7 +182,7 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview, onDe
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" className="btn-primary" style={{ flex: 1 }}>
               <Save size={18} />
-              <span>Salvar no Diário</span>
+              <span>Salvar Alterações</span>
             </button>
 
             {existingReview && onDeleteReview && (
