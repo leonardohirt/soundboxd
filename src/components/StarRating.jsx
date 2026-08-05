@@ -15,7 +15,7 @@ export function StarRating({ rating = 0, onRatingChange, readonly = false, size 
   const stars = [1, 2, 3, 4, 5];
 
   return (
-    <div className="star-rating" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+    <div className="star-rating" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
       {stars.map((starIndex) => {
         const fillAmount = Math.max(0, Math.min(1, displayRating - (starIndex - 1)));
         const isHalf = fillAmount > 0 && fillAmount < 1;
@@ -26,9 +26,13 @@ export function StarRating({ rating = 0, onRatingChange, readonly = false, size 
             key={starIndex}
             style={{
               position: 'relative',
+              width: `${size}px`,
+              height: `${size}px`,
               cursor: readonly ? 'default' : 'pointer',
               display: 'flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
             }}
             onClick={(e) => {
               if (readonly) return;
@@ -47,9 +51,9 @@ export function StarRating({ rating = 0, onRatingChange, readonly = false, size 
             onMouseLeave={() => !readonly && setHoverRating(0)}
           >
             {/* Background Empty Star */}
-            <Star size={size} color="#343a40" fill="none" />
+            <Star size={size} color="#343a40" fill="none" style={{ display: 'block', minWidth: `${size}px` }} />
             
-            {/* Filled Star overlay */}
+            {/* Filled Star overlay with fixed aspect ratio */}
             {(isFull || isHalf) && (
               <div
                 style={{
@@ -57,19 +61,24 @@ export function StarRating({ rating = 0, onRatingChange, readonly = false, size 
                   top: 0,
                   left: 0,
                   width: isFull ? '100%' : '50%',
+                  height: '100%',
                   overflow: 'hidden',
-                  pointerEvents: 'none'
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
               >
-                <Star size={size} color="#ffb703" fill="#ffb703" />
+                <Star size={size} color="#ffb703" fill="#ffb703" style={{ minWidth: `${size}px`, width: `${size}px`, display: 'block', flexShrink: 0 }} />
               </div>
             )}
           </div>
         );
       })}
-      {rating > 0 && readonly && (
+      
+      {/* Display numeric rating tag */}
+      {displayRating > 0 && (
         <span style={{ fontSize: '11px', fontWeight: '700', color: '#ffb703', marginLeft: '4px' }}>
-          {rating.toFixed(1)}
+          {Number(displayRating).toFixed(1)}
         </span>
       )}
     </div>
