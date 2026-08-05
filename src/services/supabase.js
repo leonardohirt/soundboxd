@@ -225,6 +225,26 @@ export const saveLocalTrackRating = (trackRatingData) => {
   return ratings;
 };
 
+export const deleteTrackRating = async (albumId, trackId) => {
+  const ratings = getLocalTrackRatings();
+  const key = `${albumId}_${trackId}`;
+  delete ratings[key];
+  localStorage.setItem('soundboxd_track_ratings', JSON.stringify(ratings));
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from('track_ratings')
+        .delete()
+        .eq('album_id', String(albumId))
+        .eq('track_id', String(trackId));
+    } catch (err) {
+      console.warn('Supabase track rating delete error:', err);
+    }
+  }
+  return ratings;
+};
+
 export const fetchTrackRatings = async (albumId) => {
   if (isSupabaseConfigured() && supabase && albumId) {
     try {
@@ -280,6 +300,21 @@ export const saveLocalList = (newList) => {
   const lists = getLocalLists();
   const updated = [newList, ...lists];
   localStorage.setItem('soundboxd_lists', JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteList = async (listId) => {
+  const lists = getLocalLists();
+  const updated = lists.filter(l => l.id !== listId);
+  localStorage.setItem('soundboxd_lists', JSON.stringify(updated));
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('lists').delete().eq('id', listId);
+    } catch (err) {
+      console.warn('Supabase list delete error:', err);
+    }
+  }
   return updated;
 };
 

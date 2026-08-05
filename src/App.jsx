@@ -12,7 +12,7 @@ import { CreateListModal } from './components/CreateListModal';
 import { AuthScreen } from './components/AuthScreen';
 import { StarRating } from './components/StarRating';
 import { searchAlbums, searchTracks, searchAll, getTrendingAlbums } from './services/musicApi';
-import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, fetchProfile, updateProfile, fetchTrackRatings, saveTrackRating, getLocalTrackRatings, supabase } from './services/supabase';
+import { fetchReviews, createOrUpdateReview, deleteReview, getLocalLists, saveLocalList, deleteList, fetchProfile, updateProfile, fetchTrackRatings, saveTrackRating, deleteTrackRating, getLocalTrackRatings, supabase } from './services/supabase';
 import { Search, Plus, BookOpen, Flame, Disc, Trash2, Edit3, LogOut, Layers, Heart, Play, Pause, Music } from 'lucide-react';
 
 export default function App() {
@@ -59,7 +59,7 @@ export default function App() {
     const [trending, revs, prof] = await Promise.all([
       getTrendingAlbums(),
       fetchReviews(),
-      fetchProfile()
+      fetchProfile(userSession)
     ]);
     setTrendingAlbums(trending);
     setReviews(revs);
@@ -147,8 +147,16 @@ export default function App() {
   const handleDeleteReview = async (id) => {
     if (window.confirm('Deseja excluir esta avaliação do seu diário?')) {
       await deleteReview(id);
+      setSelectedAlbum(null);
+      setReviewAlbum(null);
+      setEditingReview(null);
       loadData();
     }
+  };
+
+  const handleDeleteTrackRatingFromApp = async (albumId, trackId) => {
+    const updated = await deleteTrackRating(albumId, trackId);
+    setUserTrackRatings({ ...updated });
   };
 
   // Profile Save Handler
@@ -158,11 +166,18 @@ export default function App() {
     setShowEditProfile(false);
   };
 
-  // List Save Handler
+  // List Save & Delete Handlers
   const handleSaveList = (newList) => {
     const updatedLists = saveLocalList(newList);
     setLists(updatedLists);
     setShowCreateList(false);
+  };
+
+  const handleDeleteList = async (listId, title) => {
+    if (window.confirm(`Deseja excluir a coleção "${title}"?`)) {
+      const updated = await deleteList(listId);
+      setLists(updated);
+    }
   };
 
   // Quick helper to check if an album has been reviewed
@@ -176,7 +191,7 @@ export default function App() {
       <Header onOpenSettings={() => setShowSettings(true)} />
 
       {/* Logout Bar Banner */}
-      <div style={{ background: 'rgba(0,0,0,0.4)', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ background: 'rgba(15,23,42,0.6)', padding: '6px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', borderBottom: '1px solid var(--border-color)' }}>
         <span style={{ color: 'var(--text-secondary)' }}>
           Conectado como <strong style={{ color: '#fff' }}>@{profile?.username || userSession.username}</strong>
         </span>
@@ -196,8 +211,8 @@ export default function App() {
           <div>
             {/* Quick Hero Banner */}
             <div style={{
-              background: 'linear-gradient(135deg, rgba(0,224,84,0.15) 0%, rgba(0,242,254,0.05) 100%)',
-              border: '1px solid rgba(0,224,84,0.2)',
+              background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%)',
+              border: '1px solid rgba(192, 132, 252, 0.3)',
               borderRadius: '16px',
               padding: '16px',
               marginBottom: '20px',
@@ -206,7 +221,7 @@ export default function App() {
               justifyContent: 'space-between'
             }}>
               <div>
-                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-green)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--color-purple-light)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   BEM-VINDO!
                 </span>
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', margin: '4px 0 2px 0' }}>
@@ -229,11 +244,11 @@ export default function App() {
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Flame size={16} color="var(--color-green)" /> Álbuns em Destaque
+                  <Flame size={16} color="var(--color-purple-light)" /> Álbuns em Destaque
                 </h3>
                 <button
                   onClick={() => setActiveTab('search')}
-                  style={{ background: 'none', border: 'none', color: 'var(--color-green)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   Ver mais
                 </button>
@@ -260,7 +275,7 @@ export default function App() {
             {/* Section: Recent Reviews Feed */}
             <div>
               <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <BookOpen size={16} color="var(--color-cyan)" /> Atividade Recente
+                <BookOpen size={16} color="var(--color-blue-mid)" /> Atividade Recente
               </h3>
 
               {reviews.length === 0 ? (
@@ -304,9 +319,18 @@ export default function App() {
                             >
                               {rev.album_title}
                             </h4>
-                            <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>{rev.artist_name}</p>
+                            <p style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 600 }}>{rev.artist_name}</p>
                           </div>
-                          <StarRating rating={rev.rating} readonly size={12} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <StarRating rating={rev.rating} readonly size={12} />
+                            <button
+                              onClick={() => handleDeleteReview(rev.id)}
+                              title="Excluir esta avaliação"
+                              style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px', opacity: 0.8 }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                         {rev.review_text && (
                           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -315,7 +339,7 @@ export default function App() {
                         )}
                         <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px' }}>
                           <span>{new Date(rev.listened_date || rev.created_at).toLocaleDateString('pt-BR')}</span>
-                          {rev.is_relisten && <span style={{ color: 'var(--color-cyan)' }}>• Re-ouviu</span>}
+                          {rev.is_relisten && <span style={{ color: 'var(--color-purple-light)' }}>• Re-ouviu</span>}
                           {rev.is_favorite && <span style={{ color: '#ff4d6d' }}>• Favorito</span>}
                         </div>
                       </div>
@@ -353,9 +377,9 @@ export default function App() {
                   flex: 1,
                   padding: '8px',
                   borderRadius: '20px',
-                  border: searchFilter === 'tracks' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
-                  background: searchFilter === 'tracks' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
-                  color: searchFilter === 'tracks' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  border: searchFilter === 'tracks' ? '1px solid var(--color-purple-light)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'tracks' ? 'rgba(124, 58, 237, 0.2)' : 'var(--bg-card)',
+                  color: searchFilter === 'tracks' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -375,9 +399,9 @@ export default function App() {
                   flex: 1,
                   padding: '8px',
                   borderRadius: '20px',
-                  border: searchFilter === 'albums' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
-                  background: searchFilter === 'albums' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
-                  color: searchFilter === 'albums' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  border: searchFilter === 'albums' ? '1px solid var(--color-purple-light)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'albums' ? 'rgba(124, 58, 237, 0.2)' : 'var(--bg-card)',
+                  color: searchFilter === 'albums' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -396,9 +420,9 @@ export default function App() {
                 style={{
                   padding: '8px 14px',
                   borderRadius: '20px',
-                  border: searchFilter === 'all' ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
-                  background: searchFilter === 'all' ? 'rgba(0, 224, 84, 0.15)' : 'var(--bg-card)',
-                  color: searchFilter === 'all' ? 'var(--color-green)' : 'var(--text-secondary)',
+                  border: searchFilter === 'all' ? '1px solid var(--color-purple-light)' : '1px solid var(--border-color)',
+                  background: searchFilter === 'all' ? 'rgba(124, 58, 237, 0.2)' : 'var(--bg-card)',
+                  color: searchFilter === 'all' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer'
@@ -454,7 +478,7 @@ export default function App() {
                                 <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {track.track_name}
                                 </h4>
-                                <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>
+                                <p style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 600 }}>
                                   {track.artist_name} • <span style={{ color: 'var(--text-secondary)' }}>{track.album_title}</span>
                                 </p>
                               </div>
@@ -463,8 +487,8 @@ export default function App() {
                                 <button
                                   onClick={() => setCurrentTrack({ ...track, cover_url: track.cover_url })}
                                   style={{
-                                    background: isPlaying ? 'var(--color-green)' : 'rgba(255,255,255,0.1)',
-                                    color: isPlaying ? '#000' : '#fff',
+                                    background: isPlaying ? 'var(--color-purple-main)' : 'rgba(255,255,255,0.1)',
+                                    color: '#fff',
                                     border: 'none',
                                     borderRadius: '50%',
                                     width: '32px',
@@ -476,7 +500,7 @@ export default function App() {
                                     flexShrink: 0
                                   }}
                                 >
-                                  {isPlaying ? <Pause size={16} fill="#000" /> : <Play size={16} style={{ marginLeft: '2px' }} />}
+                                  {isPlaying ? <Pause size={16} fill="#fff" /> : <Play size={16} style={{ marginLeft: '2px' }} />}
                                 </button>
                               )}
                             </div>
@@ -503,7 +527,7 @@ export default function App() {
 
                                 <button
                                   onClick={() => setSelectedAlbum(track)}
-                                  style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                                  style={{ background: 'none', border: 'none', color: 'var(--color-purple-light)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
                                 >
                                   Ver Álbum
                                 </button>
@@ -609,18 +633,20 @@ export default function App() {
                           <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#fff', cursor: 'pointer' }} onClick={() => setSelectedAlbum(rev)}>
                             {rev.album_title}
                           </h4>
-                          <p style={{ fontSize: '12px', color: 'var(--color-green)', fontWeight: 600 }}>{rev.artist_name}</p>
+                          <p style={{ fontSize: '12px', color: 'var(--color-purple-light)', fontWeight: 600 }}>{rev.artist_name}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button
                             onClick={() => { setEditingReview(rev); setReviewAlbum(rev); }}
                             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+                            title="Editar"
                           >
                             <Edit3 size={14} />
                           </button>
                           <button
                             onClick={() => handleDeleteReview(rev.id)}
                             style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px' }}
+                            title="Excluir Avaliação"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -632,14 +658,14 @@ export default function App() {
                       </div>
 
                       {rev.review_text && (
-                        <p style={{ fontSize: '12px', color: 'var(--text-primary)', background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '6px', borderLeft: '2px solid var(--color-green)' }}>
+                        <p style={{ fontSize: '12px', color: 'var(--text-primary)', background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '6px', borderLeft: '2px solid var(--color-purple-main)' }}>
                           {rev.review_text}
                         </p>
                       )}
 
                       <div style={{ display: 'flex', gap: '10px', fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
                         <span>Escutado em: {new Date(rev.listened_date || rev.created_at).toLocaleDateString('pt-BR')}</span>
-                        {rev.is_relisten && <span style={{ color: 'var(--color-cyan)' }}>• Re-ouviu</span>}
+                        {rev.is_relisten && <span style={{ color: 'var(--color-purple-light)' }}>• Re-ouviu</span>}
                         {rev.is_favorite && <span style={{ color: '#ff4d6d', fontWeight: 700 }}>♥ Favorito</span>}
                       </div>
                     </div>
@@ -679,8 +705,18 @@ export default function App() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>{list.title}</h3>
-                    <span style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 700 }}>{list.items ? list.items.length : 0} álbuns</span>
+                    <div>
+                      <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#fff' }}>{list.title}</h3>
+                      <span style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 700 }}>{list.items ? list.items.length : 0} álbuns</span>
+                    </div>
+
+                    <button
+                      onClick={() => handleDeleteList(list.id, list.title)}
+                      title="Excluir Lista"
+                      style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '4px', opacity: 0.8 }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                   {list.description && (
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{list.description}</p>
@@ -718,6 +754,8 @@ export default function App() {
             reviews={reviews}
             onSelectAlbum={(alb) => setSelectedAlbum(alb)}
             onOpenEditProfile={() => setShowEditProfile(true)}
+            onDeleteReview={handleDeleteReview}
+            onDeleteTrackRating={handleDeleteTrackRatingFromApp}
           />
         )}
 
@@ -740,6 +778,7 @@ export default function App() {
             setEditingReview(getReviewForAlbum(alb.album_id));
             setSelectedAlbum(null);
           }}
+          onDeleteReview={handleDeleteReview}
           onPlayTrack={(track) => setCurrentTrack(track)}
           currentPlayingTrack={currentTrack}
         />
@@ -752,6 +791,7 @@ export default function App() {
           existingReview={editingReview}
           onClose={() => { setReviewAlbum(null); setEditingReview(null); }}
           onSaveReview={handleSaveReview}
+          onDeleteReview={handleDeleteReview}
         />
       )}
 

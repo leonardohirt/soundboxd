@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Play, Pause, PlusCircle, ExternalLink, Calendar, Music, Disc, Heart } from 'lucide-react';
+import { X, Play, Pause, PlusCircle, ExternalLink, Calendar, Music, Disc, Heart, Trash2 } from 'lucide-react';
 import { getAlbumDetails } from '../services/musicApi';
 import { StarRating } from './StarRating';
-import { fetchTrackRatings, saveTrackRating } from '../services/supabase';
+import { fetchTrackRatings, saveTrackRating, deleteTrackRating } from '../services/supabase';
 
-export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onPlayTrack, currentPlayingTrack }) {
+export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onDeleteReview, onPlayTrack, currentPlayingTrack }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [trackRatings, setTrackRatings] = useState({});
@@ -66,6 +66,16 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
     await saveTrackRating(updatedData);
   };
 
+  const handleRemoveTrackRating = async (track) => {
+    const key = `${albumData.album_id}_${track.track_id}`;
+    setTrackRatings(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+    await deleteTrackRating(albumData.album_id, track.track_id);
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="bottom-sheet" style={{ maxHeight: '88vh' }} onClick={(e) => e.stopPropagation()}>
@@ -113,7 +123,7 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, lineHeight: '1.25', color: '#fff', marginBottom: '4px' }}>
               {albumData.album_title}
             </h2>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-green)', fontWeight: 600, marginBottom: '8px' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-purple-light)', fontWeight: 600, marginBottom: '8px' }}>
               {albumData.artist_name}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -129,14 +139,14 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
             {userReview && (
               <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <StarRating rating={userReview.rating} readonly size={14} />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(Nota do álbum)</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(Sua nota)</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Primary Action Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: userReview ? '1fr 1fr 44px' : '1fr 1fr', gap: '10px', marginBottom: '24px' }}>
           <button className="btn-primary" onClick={() => onOpenReview(albumData)}>
             <PlusCircle size={18} />
             <span>{userReview ? 'Editar Resenha' : 'Avaliar Álbum'}</span>
@@ -150,9 +160,28 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
             style={{ justifyContent: 'center' }}
           >
             <Disc size={16} />
-            <span>Ouvir no Spotify</span>
+            <span>Spotify</span>
             <ExternalLink size={12} />
           </a>
+
+          {userReview && onDeleteReview && (
+            <button
+              onClick={() => onDeleteReview(userReview.id)}
+              title="Excluir Avaliação deste Álbum"
+              style={{
+                background: 'rgba(255, 77, 109, 0.15)',
+                border: '1px solid #ff4d6d',
+                color: '#ff4d6d',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <Trash2 size={18} />
+            </button>
+          )}
         </div>
 
         {/* Tracklist Section with Individual Track Rating */}
@@ -161,8 +190,8 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
             <h3 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
               Avaliar Faixas Individuais ({albumData.tracks ? albumData.tracks.length : '...'})
             </h3>
-            <span style={{ fontSize: '10px', color: 'var(--color-green)', fontWeight: 600 }}>
-              Toque nas estrelas para avaliar cada música
+            <span style={{ fontSize: '10px', color: 'var(--color-purple-light)', fontWeight: 600 }}>
+              Toque para avaliar cada música
             </span>
           </div>
 
@@ -179,6 +208,7 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                   const currentTrackData = trackRatings[trackKey] || {};
                   const trackRating = currentTrackData.rating || 0;
                   const isFav = currentTrackData.is_favorite || false;
+                  const hasRating = Boolean(currentTrackData.rating || currentTrackData.is_favorite);
 
                   return (
                     <div
@@ -188,9 +218,9 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                         flexDirection: 'column',
                         gap: '6px',
                         padding: '10px 12px',
-                        background: isPlaying ? 'rgba(0, 224, 84, 0.1)' : 'rgba(255,255,255,0.03)',
+                        background: isPlaying ? 'rgba(192, 132, 252, 0.12)' : 'rgba(255,255,255,0.03)',
                         borderRadius: '10px',
-                        border: isPlaying ? '1px solid var(--color-green)' : '1px solid var(--border-color)',
+                        border: isPlaying ? '1px solid var(--color-purple-light)' : '1px solid var(--border-color)',
                         transition: 'all 0.2s ease'
                       }}
                     >
@@ -200,7 +230,7 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                             {track.track_number}
                           </span>
                           <div style={{ overflow: 'hidden' }}>
-                            <p style={{ fontSize: '13px', fontWeight: isPlaying ? 700 : 600, color: isPlaying ? 'var(--color-green)' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <p style={{ fontSize: '13px', fontWeight: isPlaying ? 700 : 600, color: isPlaying ? 'var(--color-purple-light)' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {track.track_name}
                             </p>
                           </div>
@@ -210,8 +240,8 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                           <button
                             onClick={() => onPlayTrack({ ...track, album_title: albumData.album_title, cover_url: albumData.cover_url })}
                             style={{
-                              background: isPlaying ? 'var(--color-green)' : 'rgba(255,255,255,0.1)',
-                              color: isPlaying ? '#000' : '#fff',
+                              background: isPlaying ? 'var(--color-purple-main)' : 'rgba(255,255,255,0.1)',
+                              color: '#fff',
                               border: 'none',
                               borderRadius: '50%',
                               width: '28px',
@@ -223,7 +253,7 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                               flexShrink: 0
                             }}
                           >
-                            {isPlaying ? <Pause size={14} fill="#000" /> : <Play size={14} style={{ marginLeft: '2px' }} />}
+                            {isPlaying ? <Pause size={14} fill="#fff" /> : <Play size={14} style={{ marginLeft: '2px' }} />}
                           </button>
                         )}
                       </div>
@@ -231,7 +261,7 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                       {/* Track Rating Controls Row */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>Sua nota:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>Nota:</span>
                           <StarRating
                             rating={trackRating}
                             onRatingChange={(val) => handleRateTrack(track, val)}
@@ -239,23 +269,35 @@ export function AlbumDetailModal({ album, userReview, onClose, onOpenReview, onP
                           />
                         </div>
 
-                        <button
-                          onClick={() => handleToggleFavoriteTrack(track)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: isFav ? '#ff4d6d' : 'var(--text-muted)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '11px',
-                            fontWeight: 600
-                          }}
-                        >
-                          <Heart size={14} fill={isFav ? '#ff4d6d' : 'none'} />
-                          <span>{isFav ? 'Destaque' : 'Favoritar'}</span>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <button
+                            onClick={() => handleToggleFavoriteTrack(track)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: isFav ? '#ff4d6d' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              fontWeight: 600
+                            }}
+                          >
+                            <Heart size={14} fill={isFav ? '#ff4d6d' : 'none'} />
+                            <span>{isFav ? 'Destaque' : 'Favoritar'}</span>
+                          </button>
+
+                          {hasRating && (
+                            <button
+                              onClick={() => handleRemoveTrackRating(track)}
+                              title="Remover avaliação desta música"
+                              style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', opacity: 0.8, padding: '2px' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

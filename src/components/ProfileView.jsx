@@ -1,16 +1,32 @@
 import React, { useState } from 'react';
-import { User, Edit3, Heart, Star, Disc, Music, BarChart2, BookOpen, Clock, Award, Filter, Sparkles, Check } from 'lucide-react';
+import { User, Edit3, Heart, Star, Disc, Music, BarChart2, BookOpen, Clock, Award, Filter, Sparkles, Check, Trash2 } from 'lucide-react';
 import { AlbumCard } from './AlbumCard';
 import { StarRating } from './StarRating';
-import { getLocalTrackRatings } from '../services/supabase';
+import { getLocalTrackRatings, deleteTrackRating } from '../services/supabase';
 
-export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile }) {
+export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile, onDeleteReview, onDeleteTrackRating }) {
   const [subTab, setSubTab] = useState('stats'); // 'stats' | 'reviews' | 'tracks' | 'favorites'
   const [reviewSearch, setReviewSearch] = useState('');
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'rating_desc' | 'rating_asc'
+  const [localTrackRatings, setLocalTrackRatings] = useState(getLocalTrackRatings());
 
-  const allTrackRatings = getLocalTrackRatings();
-  const trackRatingList = Object.values(allTrackRatings);
+  const trackRatingList = Object.values(localTrackRatings);
+
+  const handleRemoveTrack = async (tr, e) => {
+    e.stopPropagation();
+    if (window.confirm(`Remover avaliação da música "${tr.track_name}"?`)) {
+      const updated = await deleteTrackRating(tr.album_id, tr.track_id);
+      setLocalTrackRatings({ ...updated });
+      if (onDeleteTrackRating) onDeleteTrackRating(tr.album_id, tr.track_id);
+    }
+  };
+
+  const handleRemoveReview = async (rev, e) => {
+    e.stopPropagation();
+    if (window.confirm(`Excluir a resenha do álbum "${rev.album_title}"?`)) {
+      if (onDeleteReview) onDeleteReview(rev.id);
+    }
+  };
 
   // Computing stats
   const totalAlbums = reviews.length;
@@ -18,7 +34,6 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
     ? (reviews.reduce((acc, r) => acc + Number(r.rating || 0), 0) / totalAlbums).toFixed(1)
     : '0.0';
   const favoriteAlbums = reviews.filter(r => r.is_favorite);
-  const totalHours = Math.round(totalAlbums * 0.75); // Est. 45 min per album
 
   // Rating distribution bar chart data (1 to 5 stars)
   const ratingCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
@@ -71,7 +86,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
     <div>
       {/* Profile Header Card */}
       <div style={{
-        background: 'linear-gradient(180deg, rgba(25, 29, 33, 0.95) 0%, rgba(18, 21, 24, 0.98) 100%)',
+        background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)',
         border: '1px solid var(--border-color)',
         borderRadius: '20px',
         padding: '20px',
@@ -86,7 +101,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             position: 'absolute',
             top: '16px',
             right: '16px',
-            background: 'rgba(255, 255, 255, 0.08)',
+            background: 'rgba(248, 250, 252, 0.08)',
             border: '1px solid var(--border-color)',
             color: '#fff',
             borderRadius: '10px',
@@ -100,7 +115,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             transition: 'all 0.2s ease'
           }}
         >
-          <Edit3 size={14} color="var(--color-green)" />
+          <Edit3 size={14} color="var(--color-purple-light)" />
           <span>Editar Perfil</span>
         </button>
 
@@ -115,8 +130,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
                 height: '72px',
                 borderRadius: '50%',
                 objectFit: 'cover',
-                border: '2px solid var(--color-green)',
-                boxShadow: '0 0 20px var(--color-green-glow)'
+                border: '2px solid var(--color-purple-light)',
+                boxShadow: '0 0 20px var(--color-purple-glow)'
               }}
             />
           ) : (
@@ -124,14 +139,14 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
               width: '72px',
               height: '72px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-green), var(--color-cyan))',
+              background: 'linear-gradient(135deg, var(--color-purple-main), var(--color-purple-light))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '24px',
               fontWeight: 800,
-              color: '#000',
-              boxShadow: '0 0 20px var(--color-green-glow)'
+              color: '#fff',
+              boxShadow: '0 0 20px var(--color-purple-glow)'
             }}>
               {profile?.full_name ? profile.full_name.substring(0, 2).toUpperCase() : 'SB'}
             </div>
@@ -141,7 +156,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
               {profile?.full_name || 'Usuário Soundboxd'}
             </h2>
-            <p style={{ fontSize: '12px', color: 'var(--color-green)', fontWeight: 600, marginTop: '2px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--color-purple-light)', fontWeight: 600, marginTop: '2px' }}>
               @{profile?.username || 'ouvinte'}
             </p>
           </div>
@@ -157,12 +172,12 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
         {/* Badges: Favorite artist & genre */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
           {profile?.favorite_artist && (
-            <span style={{ background: 'rgba(0, 224, 84, 0.12)', border: '1px solid rgba(0, 224, 84, 0.3)', color: 'var(--color-green)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ background: 'rgba(124, 58, 237, 0.15)', border: '1px solid rgba(192, 132, 252, 0.3)', color: 'var(--color-purple-light)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Disc size={12} /> {profile.favorite_artist}
             </span>
           )}
           {profile?.favorite_genre && (
-            <span style={{ background: 'rgba(0, 242, 254, 0.12)', border: '1px solid rgba(0, 242, 254, 0.3)', color: 'var(--color-cyan)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ background: 'rgba(37, 99, 235, 0.15)', border: '1px solid rgba(37, 99, 235, 0.3)', color: '#60A5FA', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Music size={12} /> {profile.favorite_genre}
             </span>
           )}
@@ -183,7 +198,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Favoritos</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-cyan)' }}>{trackRatingList.length}</div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-purple-light)' }}>{trackRatingList.length}</div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Músicas</div>
           </div>
         </div>
@@ -230,8 +245,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             padding: '10px',
             background: 'none',
             border: 'none',
-            borderBottom: subTab === 'stats' ? '2px solid var(--color-green)' : 'none',
-            color: subTab === 'stats' ? 'var(--color-green)' : 'var(--text-secondary)',
+            borderBottom: subTab === 'stats' ? '2px solid var(--color-purple-light)' : 'none',
+            color: subTab === 'stats' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '12px',
             cursor: 'pointer',
@@ -250,8 +265,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             padding: '10px',
             background: 'none',
             border: 'none',
-            borderBottom: subTab === 'reviews' ? '2px solid var(--color-green)' : 'none',
-            color: subTab === 'reviews' ? 'var(--color-green)' : 'var(--text-secondary)',
+            borderBottom: subTab === 'reviews' ? '2px solid var(--color-purple-light)' : 'none',
+            color: subTab === 'reviews' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '12px',
             cursor: 'pointer',
@@ -270,8 +285,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             padding: '10px',
             background: 'none',
             border: 'none',
-            borderBottom: subTab === 'tracks' ? '2px solid var(--color-green)' : 'none',
-            color: subTab === 'tracks' ? 'var(--color-green)' : 'var(--text-secondary)',
+            borderBottom: subTab === 'tracks' ? '2px solid var(--color-purple-light)' : 'none',
+            color: subTab === 'tracks' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '12px',
             cursor: 'pointer',
@@ -290,8 +305,8 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
             padding: '10px',
             background: 'none',
             border: 'none',
-            borderBottom: subTab === 'favorites' ? '2px solid var(--color-green)' : 'none',
-            color: subTab === 'favorites' ? 'var(--color-green)' : 'var(--text-secondary)',
+            borderBottom: subTab === 'favorites' ? '2px solid var(--color-purple-light)' : 'none',
+            color: subTab === 'favorites' ? 'var(--color-purple-light)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '12px',
             cursor: 'pointer',
@@ -345,7 +360,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
           {topGenres.length > 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Music size={16} color="var(--color-cyan)" /> Gêneros Mais Ouvidos
+                <Music size={16} color="var(--color-purple-light)" /> Gêneros Mais Ouvidos
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {topGenres.map(([genre, count], idx) => {
@@ -357,7 +372,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
                         <span style={{ color: 'var(--text-muted)' }}>{count} álbuns ({pct}%)</span>
                       </div>
                       <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-cyan)', borderRadius: '3px' }}></div>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--color-purple-main)', borderRadius: '3px' }}></div>
                       </div>
                     </div>
                   );
@@ -370,13 +385,13 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
           {topArtists.length > 0 && (
             <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px' }}>
               <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#fff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Disc size={16} color="var(--color-green)" /> Artistas Mais Avaliados
+                <Disc size={16} color="var(--color-blue-mid)" /> Artistas Mais Avaliados
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {topArtists.map(([artist, count], idx) => (
                   <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>{artist}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-green)' }}>{count} resenha{count > 1 ? 's' : ''}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-purple-light)' }}>{count} resenha{count > 1 ? 's' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -401,7 +416,7 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               style={{
-                background: '#14181c',
+                background: '#0F172A',
                 border: '1px solid var(--border-color)',
                 color: '#fff',
                 borderRadius: '10px',
@@ -436,9 +451,18 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{rev.album_title}</h4>
-                      <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>{rev.artist_name}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 600 }}>{rev.artist_name}</p>
                     </div>
-                    <StarRating rating={rev.rating} readonly size={12} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <StarRating rating={rev.rating} readonly size={12} />
+                      <button
+                        onClick={(e) => handleRemoveReview(rev, e)}
+                        title="Excluir esta resenha"
+                        style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px', opacity: 0.8 }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                   {rev.review_text && (
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', fontStyle: 'italic' }}>
@@ -482,14 +506,21 @@ export function ProfileView({ profile, reviews, onSelectAlbum, onOpenEditProfile
                     <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {tr.track_name}
                     </h4>
-                    <p style={{ fontSize: '11px', color: 'var(--color-green)', fontWeight: 600 }}>
+                    <p style={{ fontSize: '11px', color: 'var(--color-purple-light)', fontWeight: 600 }}>
                       {tr.artist_name}
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                     {tr.is_favorite && <Heart size={14} color="#ff4d6d" fill="#ff4d6d" />}
                     <StarRating rating={tr.rating} readonly size={12} />
+                    <button
+                      onClick={(e) => handleRemoveTrack(tr, e)}
+                      title="Excluir avaliação desta música"
+                      style={{ background: 'none', border: 'none', color: '#ff4d6d', cursor: 'pointer', padding: '2px', opacity: 0.8 }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}

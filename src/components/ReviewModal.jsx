@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { X, Heart, RotateCcw, Calendar, Save } from 'lucide-react';
+import { X, Heart, RotateCcw, Calendar, Save, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StarRating } from './StarRating';
 import { generateUUID } from '../services/supabase';
 
-export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
+export function ReviewModal({ album, existingReview, onClose, onSaveReview, onDeleteReview }) {
   const [rating, setRating] = useState(existingReview?.rating || 4.0);
   const [reviewText, setReviewText] = useState(existingReview?.review_text || '');
   const [listenedDate, setListenedDate] = useState(
@@ -80,7 +80,7 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
           <img src={album.cover_url} alt="" style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }} />
           <div>
             <div style={{ fontWeight: 700, fontSize: '13px', color: '#fff' }}>{album.album_title}</div>
-            <div style={{ fontSize: '12px', color: 'var(--color-green)' }}>{album.artist_name}</div>
+            <div style={{ fontSize: '12px', color: 'var(--color-purple-light)' }}>{album.artist_name}</div>
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
                 value={listenedDate}
                 onChange={(e) => setListenedDate(e.target.value)}
                 style={{
-                  background: '#14181c',
+                  background: '#0F172A',
                   border: '1px solid var(--border-color)',
                   color: '#fff',
                   padding: '6px 10px',
@@ -133,9 +133,9 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
                 type="button"
                 onClick={() => setIsRelisten(!isRelisten)}
                 style={{
-                  background: isRelisten ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255,255,255,0.05)',
-                  border: isRelisten ? '1px solid var(--color-cyan)' : '1px solid var(--border-color)',
-                  color: isRelisten ? 'var(--color-cyan)' : 'var(--text-secondary)',
+                  background: isRelisten ? 'rgba(192, 132, 252, 0.15)' : 'rgba(255,255,255,0.05)',
+                  border: isRelisten ? '1px solid var(--color-purple-light)' : '1px solid var(--border-color)',
+                  color: isRelisten ? 'var(--color-purple-light)' : 'var(--text-secondary)',
                   borderRadius: '6px',
                   padding: '6px 10px',
                   fontSize: '12px',
@@ -169,10 +169,34 @@ export function ReviewModal({ album, existingReview, onClose, onSaveReview }) {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary" style={{ marginTop: '8px' }}>
-            <Save size={18} />
-            <span>Salvar no Diário</span>
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+              <Save size={18} />
+              <span>Salvar no Diário</span>
+            </button>
+
+            {existingReview && onDeleteReview && (
+              <button
+                type="button"
+                onClick={() => onDeleteReview(existingReview.id)}
+                style={{
+                  background: 'rgba(255, 77, 109, 0.15)',
+                  border: '1px solid #ff4d6d',
+                  color: '#ff4d6d',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Trash2 size={16} /> Excluir
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
