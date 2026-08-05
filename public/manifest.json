@@ -1,0 +1,16 @@
+{
+  "short_name": "Soundboxd",
+  "name": "Soundboxd — Avaliação de Música",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#121518",
+  "theme_color": "#121518",
+  "display": "standalone",
+  "orientation": "portrait"
+}
