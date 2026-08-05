@@ -8,7 +8,7 @@ export function Header({ onOpenSettings }) {
   return (
     <header className="app-header">
       <div className="brand-logo">
-        <Disc size={24} className="text-green" style={{ color: '#00e054' }} />
+        <Disc size={24} style={{ color: 'var(--color-purple-light)' }} />
         <span>Soundboxd</span>
         <div className="logo-dots">
           <span className="dot dot-green"></span>
@@ -22,9 +22,9 @@ export function Header({ onOpenSettings }) {
           onClick={onOpenSettings}
           title={connected ? "Supabase Conectado" : "Configurações do Banco"}
           style={{
-            background: 'rgba(255,255,255,0.05)',
+            background: 'rgba(248, 250, 252, 0.05)',
             border: '1px solid var(--border-color)',
-            color: connected ? '#00e054' : '#9ab',
+            color: connected ? 'var(--color-purple-light)' : 'var(--text-secondary)',
             borderRadius: '8px',
             padding: '6px 10px',
             display: 'flex',
@@ -35,7 +35,7 @@ export function Header({ onOpenSettings }) {
             cursor: 'pointer'
           }}
         >
-          <Database size={14} color={connected ? '#00e054' : '#678'} />
+          <Database size={14} color={connected ? 'var(--color-purple-light)' : 'var(--text-muted)'} />
           <span>{connected ? 'Supabase' : 'Offline/Local'}</span>
           <Settings size={14} style={{ marginLeft: '2px', opacity: 0.7 }} />
         </button>
