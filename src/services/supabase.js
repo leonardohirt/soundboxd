@@ -27,7 +27,7 @@ export const generateUUID = () => {
   });
 };
 
-// Standard generic initial profile data
+// Standard generic fallback initial profile data
 const INITIAL_DEMO_PROFILE = {
   id: generateUUID(),
   username: 'ouvinte',
@@ -99,14 +99,40 @@ const INITIAL_DEMO_LISTS = [
   }
 ];
 
-// Profile storage helpers
+// Profile storage helpers bound to active user session
 export const getLocalProfile = () => {
+  const sessionData = localStorage.getItem('soundboxd_session');
+  const session = sessionData ? JSON.parse(sessionData) : null;
   const data = localStorage.getItem('soundboxd_profile');
-  if (!data) {
-    localStorage.setItem('soundboxd_profile', JSON.stringify(INITIAL_DEMO_PROFILE));
-    return INITIAL_DEMO_PROFILE;
+  
+  if (data) {
+    const parsed = JSON.parse(data);
+    if (session && session.username && session.username !== 'visitante') {
+      return {
+        ...parsed,
+        full_name: session.full_name || parsed.full_name,
+        username: session.username || parsed.username
+      };
+    }
+    return parsed;
   }
-  return JSON.parse(data);
+  
+  if (session && session.username) {
+    const userProfile = {
+      id: session.id || generateUUID(),
+      username: session.username,
+      full_name: session.full_name || 'Usuário Soundboxd',
+      avatar_url: session.avatar_url || '',
+      bio: 'Apaixonado por música, descobrindo novos álbuns todos os dias.',
+      favorite_artist: 'Daft Punk & Milton Nascimento',
+      favorite_genre: 'MPB / Rock / Eletrônica'
+    };
+    localStorage.setItem('soundboxd_profile', JSON.stringify(userProfile));
+    return userProfile;
+  }
+
+  localStorage.setItem('soundboxd_profile', JSON.stringify(INITIAL_DEMO_PROFILE));
+  return INITIAL_DEMO_PROFILE;
 };
 
 export const saveLocalProfile = (profileData) => {
@@ -116,14 +142,21 @@ export const saveLocalProfile = (profileData) => {
   return updated;
 };
 
-export const fetchProfile = async () => {
-  if (isSupabaseConfigured() && supabase) {
+export const fetchProfile = async (sessionUser) => {
+  const session = sessionUser || (localStorage.getItem('soundboxd_session') ? JSON.parse(localStorage.getItem('soundboxd_session')) : null);
+  
+  if (isSupabaseConfigured() && supabase && session && session.username) {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        .or(`username.eq.${session.username},id.eq.${session.id}`)
         .limit(1);
-      if (!error && data && data.length > 0) return data[0];
+      if (!error && data && data.length > 0) {
+        const prof = { ...data[0], full_name: session.full_name || data[0].full_name, username: session.username || data[0].username };
+        saveLocalProfile(prof);
+        return prof;
+      }
     } catch (err) {
       console.warn('Supabase profile fetch error', err);
     }

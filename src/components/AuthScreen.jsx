@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Disc, Mail, Lock, User, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
-import { supabase, isSupabaseConfigured } from '../services/supabase';
+import { supabase, isSupabaseConfigured, saveLocalProfile, updateProfile } from '../services/supabase';
 
 export function AuthScreen({ onLoginSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -16,6 +16,9 @@ export function AuthScreen({ onLoginSuccess }) {
     setErrorMsg('');
     setLoading(true);
 
+    const cleanUsername = username.trim() ? username.replace('@', '') : (email.split('@')[0] || 'usuario');
+    const displayName = fullName.trim() || cleanUsername;
+
     if (isSupabaseConfigured() && supabase) {
       try {
         if (isSignUp) {
@@ -24,8 +27,8 @@ export function AuthScreen({ onLoginSuccess }) {
             password,
             options: {
               data: {
-                full_name: fullName,
-                username: username.replace('@', '')
+                full_name: displayName,
+                username: cleanUsername
               }
             }
           });
@@ -35,11 +38,14 @@ export function AuthScreen({ onLoginSuccess }) {
           const userSession = {
             id: user ? user.id : 'usr-' + Date.now(),
             email,
-            full_name: fullName || 'Usuário Soundboxd',
-            username: username.replace('@', '') || email.split('@')[0],
+            full_name: displayName,
+            username: cleanUsername,
             avatar_url: ''
           };
+
           localStorage.setItem('soundboxd_session', JSON.stringify(userSession));
+          saveLocalProfile(userSession);
+          await updateProfile(userSession);
           onLoginSuccess(userSession);
         } else {
           const { data, error } = await supabase.auth.signInWithPassword({
@@ -52,11 +58,14 @@ export function AuthScreen({ onLoginSuccess }) {
           const userSession = {
             id: user.id,
             email: user.email,
-            full_name: user.user_metadata?.full_name || 'Usuário Soundboxd',
-            username: user.user_metadata?.username || user.email.split('@')[0],
+            full_name: user.user_metadata?.full_name || displayName,
+            username: user.user_metadata?.username || cleanUsername,
             avatar_url: user.user_metadata?.avatar_url || ''
           };
+
           localStorage.setItem('soundboxd_session', JSON.stringify(userSession));
+          saveLocalProfile(userSession);
+          await updateProfile(userSession);
           onLoginSuccess(userSession);
         }
       } catch (err) {
@@ -67,18 +76,19 @@ export function AuthScreen({ onLoginSuccess }) {
       }
     } else {
       // Local Auth Fallback
-      setTimeout(() => {
+      setTimeout(async () => {
         const userSession = {
           id: 'usr-' + Date.now(),
           email,
-          full_name: isSignUp ? fullName : (email.split('@')[0] || 'Usuário Soundboxd'),
-          username: isSignUp ? username.replace('@', '') : (email.split('@')[0] || 'ouvinte'),
+          full_name: displayName,
+          username: cleanUsername,
           avatar_url: ''
         };
         localStorage.setItem('soundboxd_session', JSON.stringify(userSession));
+        saveLocalProfile(userSession);
         onLoginSuccess(userSession);
         setLoading(false);
-      }, 500);
+      }, 400);
     }
   };
 
@@ -91,6 +101,7 @@ export function AuthScreen({ onLoginSuccess }) {
       avatar_url: ''
     };
     localStorage.setItem('soundboxd_session', JSON.stringify(guestSession));
+    saveLocalProfile(guestSession);
     onLoginSuccess(guestSession);
   };
 
@@ -102,7 +113,7 @@ export function AuthScreen({ onLoginSuccess }) {
       justifyContent: 'center',
       alignItems: 'center',
       padding: '24px 20px',
-      background: 'radial-gradient(circle at top, rgba(0, 224, 84, 0.12) 0%, #121518 70%)'
+      background: 'radial-gradient(circle at top, rgba(124, 58, 237, 0.18) 0%, #0F172A 70%)'
     }}>
       {/* Brand Hero Logo */}
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -110,17 +121,17 @@ export function AuthScreen({ onLoginSuccess }) {
           width: '72px',
           height: '72px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--color-green) 0%, var(--color-cyan) 100%)',
+          background: 'linear-gradient(135deg, var(--color-purple-main) 0%, var(--color-purple-light) 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 16px auto',
-          boxShadow: '0 0 30px var(--color-green-glow)'
+          boxShadow: '0 0 30px var(--color-purple-glow)'
         }}>
-          <Disc size={38} color="#000" />
+          <Disc size={38} color="#fff" />
         </div>
 
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.5px' }}>
           Soundboxd
         </h1>
         <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
@@ -139,7 +150,7 @@ export function AuthScreen({ onLoginSuccess }) {
         boxShadow: '0 10px 40px rgba(0,0,0,0.6)'
       }}>
         {/* Toggle Login vs Sign Up */}
-        <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: '4px', borderRadius: '10px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', background: 'rgba(15,23,42,0.6)', padding: '4px', borderRadius: '10px', marginBottom: '20px' }}>
           <button
             type="button"
             onClick={() => { setIsSignUp(false); setErrorMsg(''); }}
@@ -148,8 +159,8 @@ export function AuthScreen({ onLoginSuccess }) {
               padding: '8px',
               border: 'none',
               borderRadius: '8px',
-              background: !isSignUp ? 'var(--color-green)' : 'none',
-              color: !isSignUp ? '#000' : 'var(--text-secondary)',
+              background: !isSignUp ? 'var(--color-purple-main)' : 'none',
+              color: !isSignUp ? '#fff' : 'var(--text-secondary)',
               fontWeight: 700,
               fontSize: '13px',
               cursor: 'pointer',
@@ -166,8 +177,8 @@ export function AuthScreen({ onLoginSuccess }) {
               padding: '8px',
               border: 'none',
               borderRadius: '8px',
-              background: isSignUp ? 'var(--color-green)' : 'none',
-              color: isSignUp ? '#000' : 'var(--text-secondary)',
+              background: isSignUp ? 'var(--color-purple-main)' : 'none',
+              color: isSignUp ? '#fff' : 'var(--text-secondary)',
               fontWeight: 700,
               fontSize: '13px',
               cursor: 'pointer',
